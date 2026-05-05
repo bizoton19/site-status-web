@@ -1,0 +1,3 @@
+# One-off Azure tooling (not used by the Vue app). Install with:
+#   pip install -r scripts/requirements-tools.txt
+azure-data-tables>=12.5.0
