@@ -81,7 +81,11 @@ function requireApiCode() {
 function apiUrl(path, searchParams = {}) {
   const base = getBaseUrl()
   const pathname = path.startsWith('http') ? path : `${base}/${path.replace(/^\//, '')}`
-  const url = new URL(pathname)
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : DEFAULT_BASE
+  const url = new URL(pathname, origin)
   url.searchParams.set('code', requireApiCode())
   Object.entries(searchParams).forEach(([k, v]) => {
     if (v != null && v !== '') {
