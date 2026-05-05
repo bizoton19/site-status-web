@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { normalizeHistoryPayload } from '../utils/statusHistory'
 
 const DEFAULT_BASE =
   'https://healthchker-akhghwe9adgxcqdt.eastus-01.azurewebsites.net/api'
@@ -35,6 +36,13 @@ function getUrlPersisterFunctionName() {
   const raw = import.meta.env.VITE_URL_PERSISTER_FUNCTION
   if (raw && String(raw).trim()) return String(raw).trim()
   return 'urlpersister'
+}
+
+/** Status history rows — GET JSON (statusHistoryTable) */
+function getHistoryReaderFunctionName() {
+  const raw = import.meta.env.VITE_HISTORY_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'statushistoryreader'
 }
 
 function getBaseUrl() {
@@ -222,6 +230,29 @@ export function useApi() {
     }
   }
 
+  /**
+   * Historical checks from storage (statusHistoryTable).
+   * Does not use the shared `loading` ref to avoid clobbering parallel status/URL loads.
+   */
+  async function fetchStatusHistory() {
+    try {
+      const response = await fetch(apiUrl(getHistoryReaderFunctionName()), {
+        method: 'GET',
+        credentials: 'omit'
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return normalizeHistoryPayload(data)
+    } catch (err) {
+      console.error('Error fetching status history:', err)
+      return []
+    }
+  }
+
   async function deleteUrl(urlName) {
     loading.value = true
     error.value = null
@@ -253,6 +284,7 @@ export function useApi() {
     loading,
     error,
     fetchStatuses,
+    fetchStatusHistory,
     refreshStatuses,
     fetchUrls,
     addUrl,

@@ -6,7 +6,7 @@
           <div class="stat-card-title">Online</div>
           <div class="stat-card-value">{{ onlineCount }}</div>
           <div class="stat-card-trend up">
-            {{ uptimePercentage }}% of monitored endpoints
+            {{ uptimePercentage }}% OK in latest poll
           </div>
         </div>
         <div class="stat-card-icon" aria-hidden="true">

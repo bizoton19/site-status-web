@@ -1,7 +1,10 @@
 <template>
   <div class="dashboard-card">
-    <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">Status log</h3>
+    <div class="dashboard-card-header log-header">
+      <div>
+        <h3 class="dashboard-card-title">Status log</h3>
+        <p class="text-secondary log-source-note">{{ logSourceNote }}</p>
+      </div>
       <div class="log-filters">
         <button
           type="button"
@@ -45,7 +48,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="status in filteredStatuses" :key="status.rowKey">
+          <tr v-for="(status, idx) in filteredStatuses" :key="`${status.rowKey}-${idx}-${status.date}`">
             <td>
               <span class="status-badge" :class="status.status === 'OK' ? 'online' : 'offline'">
                 {{ status.status === 'OK' ? 'OK' : 'Failed' }}
@@ -80,19 +83,35 @@ const props = defineProps({
   statuses: {
     type: Array,
     default: () => []
+  },
+  /** When non-empty (from statushistoryreader), log shows historical checks instead of the current snapshot. */
+  historyRows: {
+    type: Array,
+    default: () => []
   }
 })
 
 const filter = ref('all')
 
+const sourceRows = computed(() =>
+  props.historyRows.length > 0 ? props.historyRows : props.statuses
+)
+
+const logSourceNote = computed(() =>
+  props.historyRows.length > 0
+    ? 'Rows from status history (all loaded checks).'
+    : 'Current snapshot only; open History after history API returns data.'
+)
+
 const filteredStatuses = computed(() => {
+  const list = sourceRows.value
   if (filter.value === 'online') {
-    return props.statuses.filter(s => s.status === 'OK')
+    return list.filter(s => s.status === 'OK')
   }
   if (filter.value === 'offline') {
-    return props.statuses.filter(s => s.status !== 'OK')
+    return list.filter(s => s.status !== 'OK')
   }
-  return props.statuses
+  return list
 })
 
 function formatDate(dateString) {
@@ -118,9 +137,20 @@ function truncateUrl(url) {
 </script>
 
 <style scoped>
+.log-header {
+  align-items: flex-start;
+}
+
+.log-source-note {
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+  max-width: 28rem;
+}
+
 .log-filters {
   display: flex;
   gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .btn-secondary.is-active {

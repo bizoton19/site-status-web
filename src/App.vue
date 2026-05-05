@@ -93,7 +93,7 @@
       </div>
 
       <div v-else-if="activeTab === 'urls'" class="fade-in">
-        <UrlManager @urlUpdated="loadStatuses" />
+        <UrlManager @urlUpdated="refreshData" />
       </div>
 
       <div v-else-if="activeTab === 'charts'" class="fade-in">
@@ -101,11 +101,11 @@
           <UptimeChart :statuses="statuses" />
           <ResponseTimeChart :statuses="statuses" />
         </div>
-        <HistoryChart :statuses="statuses" />
+        <HistoryChart :history="historyRaw" />
       </div>
 
       <div v-else-if="activeTab === 'history'" class="fade-in">
-        <HistoryLog :statuses="statuses" />
+        <HistoryLog :statuses="statuses" :history-rows="historyDisplayRows" />
       </div>
     </main>
 
@@ -125,6 +125,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from './composables/useApi'
+import { toDisplayHistoryRows } from './utils/statusHistory'
 import StatsOverview from './components/StatsOverview.vue'
 import StatusGrid from './components/StatusGrid.vue'
 import UrlManager from './components/UrlManager.vue'
@@ -133,14 +134,20 @@ import ResponseTimeChart from './components/ResponseTimeChart.vue'
 import HistoryChart from './components/HistoryChart.vue'
 import HistoryLog from './components/HistoryLog.vue'
 
-const { fetchStatuses, refreshStatuses } = useApi()
+const { fetchStatuses, fetchStatusHistory, refreshStatuses } = useApi()
 
 const activeTab = ref('dashboard')
 const sidebarOpen = ref(false)
 const statuses = ref([])
+const historyRaw = ref([])
 const isRefreshing = ref(false)
 const initialLoading = ref(true)
 const toasts = ref([])
+
+const historyDisplayRows = computed(() => {
+  const rows = toDisplayHistoryRows(historyRaw.value)
+  return [...rows].sort((a, b) => new Date(b.date) - new Date(a.date))
+})
 
 const headerTitle = computed(() => {
   const titles = {
@@ -156,7 +163,9 @@ const headerTitle = computed(() => {
 const headerSubtitle = computed(() => {
   const online = statuses.value.filter(s => s.status === 'OK').length
   const total = statuses.value.length
-  return `${online} of ${total} endpoints OK · Last refresh ${new Date().toLocaleString()}`
+  const histCount = historyDisplayRows.value.length
+  const histNote = histCount ? ` · ${histCount} history row(s)` : ''
+  return `${online} of ${total} endpoints OK (latest poll) · UI refresh ${new Date().toLocaleString()}${histNote}`
 })
 
 function showToast(message, type = 'success', durationMs = 5000) {
@@ -192,6 +201,14 @@ async function loadStatuses() {
   })
 }
 
+async function loadHistory() {
+  historyRaw.value = await fetchStatusHistory()
+}
+
+async function refreshData() {
+  await Promise.all([loadStatuses(), loadHistory()])
+}
+
 async function handleRefresh() {
   isRefreshing.value = true
   const result = await refreshStatuses()
@@ -199,7 +216,7 @@ async function handleRefresh() {
   if (result.success) {
     showToast(formatPollerToast(result.message), 'success', 6000)
     setTimeout(async () => {
-      await loadStatuses()
+      await refreshData()
       isRefreshing.value = false
     }, 3000)
   } else {
@@ -209,7 +226,7 @@ async function handleRefresh() {
 }
 
 onMounted(async () => {
-  await loadStatuses()
+  await refreshData()
   initialLoading.value = false
 })
 </script>

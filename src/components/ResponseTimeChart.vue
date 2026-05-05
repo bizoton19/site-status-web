@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">Endpoint status</h3>
+      <h3 class="dashboard-card-title">Endpoints (latest poll)</h3>
     </div>
     <div class="dashboard-card-body">
       <div class="chart-container">

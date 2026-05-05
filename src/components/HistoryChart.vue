@@ -1,10 +1,20 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">Uptime trend (sample)</h3>
+      <h3 class="dashboard-card-title">Uptime by day (from history)</h3>
+      <span v-if="hasData" class="text-secondary" style="font-size: 0.8rem;">
+        {{ pointCount }} day(s) with data
+      </span>
     </div>
     <div class="dashboard-card-body">
-      <div class="chart-container" style="height: 350px;">
+      <div v-if="!hasData" class="history-chart-empty">
+        <p><strong>No history yet.</strong></p>
+        <p class="text-secondary small">
+          Trends use rows from <code>statusHistoryTable</code> via
+          <code>statushistoryreader</code>. After polls write history, daily OK rates appear here.
+        </p>
+      </div>
+      <div v-else class="chart-container" style="height: 320px;">
         <Line :data="chartData" :options="chartOptions" />
       </div>
     </div>
@@ -24,47 +34,43 @@ import {
   Tooltip,
   Legend
 } from 'chart.js'
+import { aggregateUptimeByDay } from '../utils/statusHistory'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 const props = defineProps({
-  statuses: {
+  /** Raw history rows from fetchStatusHistory (array of objects). */
+  history: {
     type: Array,
     default: () => []
   }
 })
 
+const aggregated = computed(() => aggregateUptimeByDay(props.history, 14))
+
+const hasData = computed(() => aggregated.value.labels.length > 0)
+
+const pointCount = computed(() => aggregated.value.labels.length)
+
 const chartData = computed(() => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const total = props.statuses.length || 1
-  const online = props.statuses.filter(s => s.status === 'OK').length
-  const currentUptime = Math.round((online / total) * 100)
-  
-  const mockData = [
-    Math.max(85, currentUptime - 5),
-    Math.max(88, currentUptime - 3),
-    Math.max(92, currentUptime - 2),
-    Math.max(90, currentUptime - 4),
-    Math.max(95, currentUptime - 1),
-    Math.max(93, currentUptime - 2),
-    currentUptime
-  ]
-  
+  const { labels, values } = aggregated.value
   return {
-    labels: days,
-    datasets: [{
-      label: 'Uptime %',
-      data: mockData,
-      fill: false,
-      borderColor: '#154273',
-      borderWidth: 2,
-      tension: 0.2,
-      pointBackgroundColor: '#154273',
-      pointBorderColor: '#ffffff',
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 5
-    }]
+    labels,
+    datasets: [
+      {
+        label: '% checks OK',
+        data: values,
+        fill: false,
+        borderColor: '#154273',
+        borderWidth: 2,
+        tension: 0.15,
+        pointBackgroundColor: '#154273',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 5
+      }
+    ]
   }
 })
 
@@ -83,38 +89,39 @@ const chartOptions = {
       borderWidth: 1,
       padding: 12,
       callbacks: {
-        label: (context) => ` Uptime: ${context.raw}%`
+        label: (ctx) => ` ${ctx.raw}% OK`
       }
     }
   },
   scales: {
     x: {
-      grid: {
-        color: '#e8eaed',
-        drawBorder: false
-      },
-      ticks: {
-        color: '#5a6572',
-        font: {
-          size: 12
-        }
-      }
+      grid: { color: '#e8eaed', drawBorder: false },
+      ticks: { color: '#5a6572', font: { size: 11 } }
     },
     y: {
-      min: 80,
+      min: 0,
       max: 100,
-      grid: {
-        color: '#e8eaed',
-        drawBorder: false
-      },
+      grid: { color: '#e8eaed', drawBorder: false },
       ticks: {
         color: '#5a6572',
-        font: {
-          size: 12
-        },
+        font: { size: 11 },
         callback: (value) => value + '%'
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.history-chart-empty {
+  padding: 1.5rem 1rem;
+  max-width: 36rem;
+}
+
+.history-chart-empty code {
+  font-size: 0.8em;
+  background: var(--surface-muted, #f7f8fa);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+</style>
