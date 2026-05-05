@@ -1,6 +1,38 @@
 import { ref } from 'vue'
 
-const BASE_URL = 'https://functions-cpsc1.azurewebsites.net/api'
+const DEFAULT_BASE =
+  'https://healthchker-akhghwe9adgxcqdt.eastus-01.azurewebsites.net/api'
+
+/** Poller HTTP trigger (replaces legacy `/poller`). */
+const POLLER_FUNCTION = 'httpPollerTrigger'
+
+function getBaseUrl() {
+  const raw = import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE
+  return raw.replace(/\/$/, '')
+}
+
+function getApiCode() {
+  return import.meta.env.VITE_API_CODE || ''
+}
+
+/**
+ * Build an Azure Functions URL with optional `code` query param and extra search params.
+ */
+function apiUrl(path, searchParams = {}) {
+  const base = getBaseUrl()
+  const pathname = path.startsWith('http') ? path : `${base}/${path.replace(/^\//, '')}`
+  const url = new URL(pathname)
+  const code = getApiCode()
+  if (code) {
+    url.searchParams.set('code', code)
+  }
+  Object.entries(searchParams).forEach(([k, v]) => {
+    if (v != null && v !== '') {
+      url.searchParams.set(k, String(v))
+    }
+  })
+  return url.href
+}
 
 export function useApi() {
   const loading = ref(false)
@@ -9,17 +41,17 @@ export function useApi() {
   async function fetchStatuses() {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/statuses`, {
+      const response = await fetch(apiUrl('statuses'), {
         method: 'GET',
         credentials: 'omit'
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
       return data
     } catch (err) {
@@ -34,17 +66,17 @@ export function useApi() {
   async function refreshStatuses() {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/poller`, {
+      const response = await fetch(apiUrl(POLLER_FUNCTION), {
         method: 'GET',
         credentials: 'omit'
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       return { success: true, status: response.status }
     } catch (err) {
       error.value = err.message
@@ -58,17 +90,17 @@ export function useApi() {
   async function fetchUrls() {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/urls`, {
+      const response = await fetch(apiUrl('urls'), {
         method: 'GET',
         credentials: 'omit'
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
       return data
     } catch (err) {
@@ -83,24 +115,26 @@ export function useApi() {
   async function addUrl(urlData) {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/url`, {
+      const response = await fetch(apiUrl('url'), {
         method: 'POST',
         credentials: 'omit',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify([{
-          urlName: urlData.urlName,
-          url: urlData.url
-        }])
+        body: JSON.stringify([
+          {
+            urlName: urlData.urlName,
+            url: urlData.url
+          }
+        ])
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       return { success: true }
     } catch (err) {
       error.value = err.message
@@ -114,24 +148,26 @@ export function useApi() {
   async function updateUrl(urlData) {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/url`, {
+      const response = await fetch(apiUrl('url'), {
         method: 'PUT',
         credentials: 'omit',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify([{
-          urlName: urlData.urlName,
-          url: urlData.url
-        }])
+        body: JSON.stringify([
+          {
+            urlName: urlData.urlName,
+            url: urlData.url
+          }
+        ])
       })
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       return { success: true }
     } catch (err) {
       error.value = err.message
@@ -145,17 +181,20 @@ export function useApi() {
   async function deleteUrl(urlName) {
     loading.value = true
     error.value = null
-    
+
     try {
-      const response = await fetch(`${BASE_URL}/status?urlName=${encodeURIComponent(urlName)}`, {
-        method: 'DELETE',
-        credentials: 'omit'
-      })
-      
+      const response = await fetch(
+        apiUrl('status', { urlName }),
+        {
+          method: 'DELETE',
+          credentials: 'omit'
+        }
+      )
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       return { success: true }
     } catch (err) {
       error.value = err.message
