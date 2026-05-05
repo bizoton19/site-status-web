@@ -46,6 +46,12 @@ function getHistoryReaderFunctionName() {
 }
 
 function getBaseUrl() {
+  // Dev + VITE_DEV_PROXY: call /__healthchker/api/... on the Vite host so the browser stays same-origin.
+  // Production (or dev with proxy off): use VITE_API_BASE_URL or default Azure URL — requires CORS on the Function App.
+  const useProxy = import.meta.env.VITE_DEV_PROXY === 'true'
+  if (useProxy && typeof window !== 'undefined') {
+    return `${window.location.origin}/__healthchker/api`.replace(/\/$/, '')
+  }
   const raw = import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE
   return raw.replace(/\/$/, '')
 }
