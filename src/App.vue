@@ -84,9 +84,11 @@
             :class="{ loading: isRefreshing }"
             @click="handleRefresh"
             :disabled="isRefreshing"
+            type="button"
+            title="Calls Azure httpPollerTrigger — starts a new polling/orchestration run, then reloads status data"
           >
-            <i class="bi bi-arrow-clockwise"></i>
-            {{ isRefreshing ? 'Refreshing...' : 'Refresh All' }}
+            <i class="bi bi-lightning-charge-fill"></i>
+            {{ isRefreshing ? 'Starting poll…' : 'Run poll job' }}
           </button>
         </div>
       </header>
@@ -179,12 +181,22 @@ const headerSubtitle = computed(() => {
   return `${online}/${total} sites online - Last checked: ${new Date().toLocaleTimeString()}`
 })
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', durationMs = 5000) {
   const id = Date.now()
   toasts.value.push({ id, message, type })
   setTimeout(() => {
     toasts.value = toasts.value.filter(t => t.id !== id)
-  }, 3000)
+  }, durationMs)
+}
+
+/** Azure returns plain text, e.g. "Polling request initiated. OrchestrationInstanceId: …" */
+function formatPollerToast(body) {
+  if (!body) return 'Poll job started. Loading latest statuses…'
+  const m = body.match(/OrchestrationInstanceId:\s*([a-fA-F0-9]+)/)
+  if (m) {
+    return `Poll job started. Orchestration: ${m[1]} — loading latest statuses…`
+  }
+  return body.length > 160 ? `${body.slice(0, 160)}…` : body
 }
 
 async function loadStatuses() {
@@ -208,13 +220,13 @@ async function handleRefresh() {
   const result = await refreshStatuses()
   
   if (result.success) {
-    showToast('Status refresh initiated successfully!')
+    showToast(formatPollerToast(result.message), 'success', 6000)
     setTimeout(async () => {
       await loadStatuses()
       isRefreshing.value = false
     }, 3000)
   } else {
-    showToast('Failed to refresh statuses', 'error')
+    showToast(result.error || 'Failed to run poll job', 'error')
     isRefreshing.value = false
   }
 }

@@ -3,8 +3,15 @@ import { ref } from 'vue'
 const DEFAULT_BASE =
   'https://healthchker-akhghwe9adgxcqdt.eastus-01.azurewebsites.net/api'
 
-/** Poller HTTP trigger (replaces legacy `/poller`). */
-const POLLER_FUNCTION = 'httpPollerTrigger'
+/**
+ * Manual poll: GET {VITE_API_BASE_URL}/{VITE_POLLER_FUNCTION}?code=…
+ * Example: /api/httpPollerTrigger — returns plain text (orchestration id).
+ */
+function getPollerFunctionName() {
+  const raw = import.meta.env.VITE_POLLER_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'httpPollerTrigger'
+}
 
 function getBaseUrl() {
   const raw = import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE
@@ -80,7 +87,7 @@ export function useApi() {
     error.value = null
 
     try {
-      const response = await fetch(apiUrl(POLLER_FUNCTION), {
+      const response = await fetch(apiUrl(getPollerFunctionName()), {
         method: 'GET',
         credentials: 'omit'
       })
@@ -89,7 +96,8 @@ export function useApi() {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      return { success: true, status: response.status }
+      const message = (await response.text()).trim()
+      return { success: true, status: response.status, message }
     } catch (err) {
       error.value = err.message
       console.error('Error refreshing statuses:', err)
