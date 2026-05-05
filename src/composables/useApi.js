@@ -12,20 +12,32 @@ function getBaseUrl() {
 }
 
 function getApiCode() {
-  return import.meta.env.VITE_API_CODE || ''
+  const raw = import.meta.env.VITE_API_CODE
+  return typeof raw === 'string' ? raw.trim() : ''
 }
 
 /**
- * Build an Azure Functions URL with optional `code` query param and extra search params.
+ * Every Azure HTTP function requires `?code=` (function or host key).
+ * Local `npm run dev` must load it from `.env` via VITE_API_CODE.
+ */
+function requireApiCode() {
+  const code = getApiCode()
+  if (!code) {
+    throw new Error(
+      'Missing VITE_API_CODE. Copy .env.example to .env and set your Azure Functions key (required for all API calls).'
+    )
+  }
+  return code
+}
+
+/**
+ * Build an Azure Functions URL with `code` query param and extra search params.
  */
 function apiUrl(path, searchParams = {}) {
   const base = getBaseUrl()
   const pathname = path.startsWith('http') ? path : `${base}/${path.replace(/^\//, '')}`
   const url = new URL(pathname)
-  const code = getApiCode()
-  if (code) {
-    url.searchParams.set('code', code)
-  }
+  url.searchParams.set('code', requireApiCode())
   Object.entries(searchParams).forEach(([k, v]) => {
     if (v != null && v !== '') {
       url.searchParams.set(k, String(v))
