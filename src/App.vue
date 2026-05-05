@@ -97,7 +97,7 @@
           <UptimeChart :statuses="statuses" />
           <ResponseTimeChart :statuses="statuses" />
         </div>
-        <StatusGrid :statuses="statuses" :limit="6" result-filter="all" />
+        <StatusGrid :statuses="statuses" :limit="6" result-filter="all" :show-search="false" />
       </div>
 
       <div v-else-if="activeTab === 'statuses'" class="fade-in">
