@@ -1,47 +1,59 @@
 <template>
   <div class="stats-grid">
-    <div class="stat-card success-top">
+    <button
+      type="button"
+      class="stat-card stat-card-clickable success-top"
+      @click="emit('navigate-statuses', 'online')"
+    >
       <div class="stat-card-header">
         <div>
           <div class="stat-card-title">Online</div>
           <div class="stat-card-value">{{ onlineCount }}</div>
           <div class="stat-card-trend up">
-            {{ uptimePercentage }}% OK in latest poll
+            {{ uptimePercentage }}% OK in latest poll · Open list
           </div>
         </div>
         <div class="stat-card-icon" aria-hidden="true">
           <i class="bi bi-check-lg"></i>
         </div>
       </div>
-    </div>
+    </button>
 
-    <div class="stat-card danger-top">
+    <button
+      type="button"
+      class="stat-card stat-card-clickable danger-top"
+      @click="emit('navigate-statuses', 'offline')"
+    >
       <div class="stat-card-header">
         <div>
           <div class="stat-card-title">Offline</div>
           <div class="stat-card-value">{{ offlineCount }}</div>
           <div class="stat-card-trend" :class="{ down: offlineCount > 0 }">
-            {{ offlineCount > 0 ? 'Review failed endpoints' : 'None' }}
+            {{ offlineCount > 0 ? 'Review failed endpoints · Open list' : 'None' }}
           </div>
         </div>
         <div class="stat-card-icon" aria-hidden="true">
           <i class="bi bi-x-lg"></i>
         </div>
       </div>
-    </div>
+    </button>
 
-    <div class="stat-card accent-top">
+    <button
+      type="button"
+      class="stat-card stat-card-clickable accent-top"
+      @click="emit('navigate-statuses', 'all')"
+    >
       <div class="stat-card-header">
         <div>
           <div class="stat-card-title">Monitored</div>
           <div class="stat-card-value">{{ totalCount }}</div>
-          <div class="stat-card-trend">Configured URLs</div>
+          <div class="stat-card-trend">All endpoints · Open list</div>
         </div>
         <div class="stat-card-icon" aria-hidden="true">
           <i class="bi bi-table"></i>
         </div>
       </div>
-    </div>
+    </button>
 
     <div class="stat-card neutral-top">
       <div class="stat-card-header">
@@ -67,6 +79,8 @@ const props = defineProps({
     default: () => []
   }
 })
+
+const emit = defineEmits(['navigate-statuses'])
 
 const onlineCount = computed(() =>
   props.statuses.filter(s => s.status === 'OK').length
@@ -99,3 +113,28 @@ const lastCheckDate = computed(() => {
   return latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 })
 </script>
+
+<style scoped>
+.stat-card-clickable {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card-clickable:hover {
+  border-color: #b8c0cc;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card-clickable:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+</style>

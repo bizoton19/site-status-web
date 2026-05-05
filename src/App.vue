@@ -11,19 +11,19 @@
           <div class="nav-section-title">Views</div>
           <div
             class="nav-item"
+            :class="{ active: activeTab === 'statuses' }"
+            @click="openStatusesTab"
+          >
+            <i class="bi bi-list-check"></i>
+            <span>Statuses</span>
+          </div>
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'dashboard' }"
             @click="activeTab = 'dashboard'"
           >
             <i class="bi bi-columns-gap"></i>
             <span>Overview</span>
-          </div>
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'statuses' }"
-            @click="activeTab = 'statuses'"
-          >
-            <i class="bi bi-list-check"></i>
-            <span>Statuses</span>
           </div>
           <div
             class="nav-item"
@@ -92,17 +92,23 @@
       </div>
 
       <div v-if="activeTab === 'dashboard'" class="fade-in">
-        <StatsOverview :statuses="statuses" />
+        <StatsOverview :statuses="statuses" @navigate-statuses="onStatNavigate" />
         <div class="charts-grid">
           <UptimeChart :statuses="statuses" />
           <ResponseTimeChart :statuses="statuses" />
         </div>
-        <StatusGrid :statuses="statuses" :limit="6" />
+        <StatusGrid :statuses="statuses" :limit="6" result-filter="all" />
       </div>
 
       <div v-else-if="activeTab === 'statuses'" class="fade-in">
-        <StatsOverview :statuses="statuses" />
-        <StatusGrid :statuses="statuses" />
+        <div v-if="statusesFilter !== 'all'" class="filter-toolbar">
+          <span class="text-secondary">Filter: <strong>{{ filterLabel }}</strong></span>
+          <button type="button" class="btn btn-secondary btn-sm" @click="statusesFilter = 'all'">
+            Show all
+          </button>
+        </div>
+        <StatsOverview :statuses="statuses" @navigate-statuses="onStatNavigate" />
+        <StatusGrid :statuses="statuses" :result-filter="statusesFilter" />
       </div>
 
       <div v-else-if="activeTab === 'urls'" class="fade-in">
@@ -149,7 +155,8 @@ import HistoryLog from './components/HistoryLog.vue'
 
 const { fetchStatuses, fetchStatusHistory, refreshStatuses } = useApi()
 
-const activeTab = ref('dashboard')
+const activeTab = ref('statuses')
+const statusesFilter = ref('all')
 const sidebarOpen = ref(false)
 const statuses = ref([])
 const historyRaw = ref([])
@@ -166,6 +173,22 @@ const historyDisplayRows = computed(() => {
   return [...rows].sort((a, b) => new Date(b.date) - new Date(a.date))
 })
 
+const filterLabel = computed(() => {
+  if (statusesFilter.value === 'online') return 'Online only'
+  if (statusesFilter.value === 'offline') return 'Failed only'
+  return 'All'
+})
+
+function openStatusesTab() {
+  activeTab.value = 'statuses'
+  statusesFilter.value = 'all'
+}
+
+function onStatNavigate(filter) {
+  statusesFilter.value = filter
+  activeTab.value = 'statuses'
+}
+
 const headerTitle = computed(() => {
   const titles = {
     dashboard: 'Overview',
@@ -174,7 +197,7 @@ const headerTitle = computed(() => {
     charts: 'Charts',
     history: 'History'
   }
-  return titles[activeTab.value] || 'Overview'
+  return titles[activeTab.value] || 'Statuses'
 })
 
 const headerSubtitle = computed(() => {
@@ -182,7 +205,13 @@ const headerSubtitle = computed(() => {
   const total = statuses.value.length
   const histCount = historyDisplayRows.value.length
   const histNote = histCount ? ` · ${histCount} history row(s)` : ''
-  return `${online} of ${total} endpoints OK (latest poll) · UI refresh ${new Date().toLocaleString()}${histNote}`
+  let filterNote = ''
+  if (activeTab.value === 'statuses' && statusesFilter.value === 'online') {
+    filterNote = ' · Showing online only'
+  } else if (activeTab.value === 'statuses' && statusesFilter.value === 'offline') {
+    filterNote = ' · Showing failed only'
+  }
+  return `${online} of ${total} endpoints OK (latest poll)${filterNote} · UI refresh ${new Date().toLocaleString()}${histNote}`
 })
 
 function showToast(message, type = 'success', durationMs = 5000) {
@@ -272,3 +301,14 @@ onMounted(async () => {
   initialLoading.value = false
 })
 </script>
+
+<style scoped>
+.filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+}
+</style>
