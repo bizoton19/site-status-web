@@ -1,82 +1,70 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-journal-text"></i>
-        Recent Activity Log
-      </h3>
-      <div style="display: flex; gap: 0.5rem;">
-        <button 
+      <h3 class="dashboard-card-title">Status log</h3>
+      <div class="log-filters">
+        <button
+          type="button"
           class="btn btn-secondary btn-sm"
-          :class="{ active: filter === 'all' }"
+          :class="{ 'is-active': filter === 'all' }"
           @click="filter = 'all'"
-          style="padding: 0.4rem 1rem;"
         >
           All
         </button>
-        <button 
+        <button
+          type="button"
           class="btn btn-secondary btn-sm"
-          :class="{ active: filter === 'online' }"
+          :class="{ 'is-active': filter === 'online' }"
           @click="filter = 'online'"
-          style="padding: 0.4rem 1rem;"
         >
-          Online
+          OK
         </button>
-        <button 
+        <button
+          type="button"
           class="btn btn-secondary btn-sm"
-          :class="{ active: filter === 'offline' }"
+          :class="{ 'is-active': filter === 'offline' }"
           @click="filter = 'offline'"
-          style="padding: 0.4rem 1rem;"
         >
-          Offline
+          Failed
         </button>
       </div>
     </div>
     <div class="dashboard-card-body" style="padding: 0;">
       <div v-if="filteredStatuses.length === 0" class="empty-state">
-        <i class="bi bi-inbox"></i>
-        <h4>No Activity</h4>
-        <p>No status updates to display.</p>
+        <h4>No records</h4>
+        <p>There is no status data to show for this filter.</p>
       </div>
       <table v-else class="data-table">
         <thead>
           <tr>
-            <th>Status</th>
-            <th>Site</th>
+            <th>Result</th>
+            <th>Name</th>
             <th>URL</th>
-            <th>Timestamp</th>
-            <th>Details</th>
+            <th>Time</th>
+            <th>Detail</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="status in filteredStatuses" :key="status.rowKey">
             <td>
               <span class="status-badge" :class="status.status === 'OK' ? 'online' : 'offline'">
-                <i :class="status.status === 'OK' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill'" class="me-1"></i>
-                {{ status.status === 'OK' ? 'Online' : 'Offline' }}
+                {{ status.status === 'OK' ? 'OK' : 'Failed' }}
               </span>
             </td>
             <td>
               <strong>{{ status.urlName }}</strong>
             </td>
             <td>
-              <a :href="status.url" target="_blank" style="color: #4facfe; text-decoration: none;">
+              <a class="link-dashboard" :href="status.url" target="_blank" rel="noopener noreferrer">
                 {{ truncateUrl(status.url) }}
               </a>
             </td>
-            <td style="color: var(--text-secondary);">
-              <i class="bi bi-clock me-1"></i>
+            <td class="text-secondary">
               {{ formatDate(status.date) }}
             </td>
             <td>
-              <span v-if="status.status === 'OK'" style="color: #38ef7d;">
-                <i class="bi bi-shield-check me-1"></i>
-                Healthy
-              </span>
-              <span v-else style="color: #f45c43;">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                {{ status.description || 'Connection Error' }}
-              </span>
+              <span v-if="status.status === 'OK'" class="text-ok">Normal</span>
+              <span v-else class="text-err">{{ status.description || 'Error' }}</span>
             </td>
           </tr>
         </tbody>
@@ -108,9 +96,9 @@ const filteredStatuses = computed(() => {
 })
 
 function formatDate(dateString) {
-  if (!dateString) return 'Unknown'
+  if (!dateString) return '—'
   const date = new Date(dateString)
-  if (isNaN(date)) return 'Unknown'
+  if (isNaN(date)) return '—'
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -122,16 +110,30 @@ function formatDate(dateString) {
 
 function truncateUrl(url) {
   if (!url) return ''
-  if (url.length > 40) {
-    return url.substring(0, 40) + '...'
+  if (url.length > 48) {
+    return url.substring(0, 48) + '…'
   }
   return url
 }
 </script>
 
 <style scoped>
-.btn-secondary.active {
-  background: var(--primary-gradient);
-  border-color: transparent;
+.log-filters {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.btn-secondary.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.text-ok {
+  color: var(--success);
+}
+
+.text-err {
+  color: var(--danger);
 }
 </style>

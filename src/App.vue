@@ -1,99 +1,83 @@
 <template>
   <div class="dashboard-wrapper">
-    <!-- Sidebar -->
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-brand">
-        <i class="bi bi-activity"></i>
-        <h1>StatusHub</h1>
+        <h1>Site status</h1>
+        <div class="sidebar-tagline">Monitoring dashboard</div>
       </div>
-      
+
       <nav>
         <div class="nav-section">
-          <div class="nav-section-title">Main</div>
-          <div 
-            class="nav-item" 
+          <div class="nav-section-title">Views</div>
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'dashboard' }"
             @click="activeTab = 'dashboard'"
           >
-            <i class="bi bi-grid-1x2-fill"></i>
-            <span>Dashboard</span>
+            <i class="bi bi-columns-gap"></i>
+            <span>Overview</span>
           </div>
-          <div 
-            class="nav-item" 
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'statuses' }"
             @click="activeTab = 'statuses'"
           >
-            <i class="bi bi-heart-pulse-fill"></i>
-            <span>Site Statuses</span>
+            <i class="bi bi-list-check"></i>
+            <span>Statuses</span>
           </div>
-          <div 
-            class="nav-item" 
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'urls' }"
             @click="activeTab = 'urls'"
           >
             <i class="bi bi-link-45deg"></i>
-            <span>URL Management</span>
+            <span>URLs</span>
           </div>
         </div>
-        
+
         <div class="nav-section">
-          <div class="nav-section-title">Analytics</div>
-          <div 
-            class="nav-item" 
+          <div class="nav-section-title">Reports</div>
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'charts' }"
             @click="activeTab = 'charts'"
           >
-            <i class="bi bi-graph-up-arrow"></i>
-            <span>Uptime Charts</span>
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Charts</span>
           </div>
-          <div 
-            class="nav-item" 
+          <div
+            class="nav-item"
             :class="{ active: activeTab === 'history' }"
             @click="activeTab = 'history'"
           >
             <i class="bi bi-clock-history"></i>
-            <span>History Log</span>
-          </div>
-        </div>
-        
-        <div class="nav-section">
-          <div class="nav-section-title">Settings</div>
-          <div class="nav-item">
-            <i class="bi bi-gear-fill"></i>
-            <span>Preferences</span>
-          </div>
-          <div class="nav-item">
-            <i class="bi bi-bell-fill"></i>
-            <span>Notifications</span>
+            <span>History</span>
           </div>
         </div>
       </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
-      <!-- Header -->
       <header class="dashboard-header">
         <div class="header-left">
           <h2>{{ headerTitle }}</h2>
-          <p><span class="pulse"></span>{{ headerSubtitle }}</p>
+          <p class="header-status-note">{{ headerSubtitle }}</p>
         </div>
         <div class="header-right">
-          <button 
-            class="btn-refresh" 
+          <button
+            class="btn-refresh"
             :class="{ loading: isRefreshing }"
             @click="handleRefresh"
             :disabled="isRefreshing"
             type="button"
-            title="Calls Azure httpPollerTrigger — starts a new polling/orchestration run, then reloads status data"
+            title="Triggers the configured Azure poll function, then reloads status data."
           >
-            <i class="bi bi-lightning-charge-fill"></i>
-            {{ isRefreshing ? 'Starting poll…' : 'Run poll job' }}
+            <i class="bi bi-arrow-repeat"></i>
+            {{ isRefreshing ? 'Starting…' : 'Run poll' }}
           </button>
         </div>
       </header>
 
-      <!-- Dashboard View -->
       <div v-if="activeTab === 'dashboard'" class="fade-in">
         <StatsOverview :statuses="statuses" />
         <div class="charts-grid">
@@ -103,18 +87,15 @@
         <StatusGrid :statuses="statuses" :limit="6" />
       </div>
 
-      <!-- Statuses View -->
       <div v-else-if="activeTab === 'statuses'" class="fade-in">
         <StatsOverview :statuses="statuses" />
         <StatusGrid :statuses="statuses" />
       </div>
 
-      <!-- URL Management View -->
       <div v-else-if="activeTab === 'urls'" class="fade-in">
         <UrlManager @urlUpdated="loadStatuses" />
       </div>
 
-      <!-- Charts View -->
       <div v-else-if="activeTab === 'charts'" class="fade-in">
         <div class="charts-grid">
           <UptimeChart :statuses="statuses" />
@@ -123,21 +104,18 @@
         <HistoryChart :statuses="statuses" />
       </div>
 
-      <!-- History View -->
       <div v-else-if="activeTab === 'history'" class="fade-in">
         <HistoryLog :statuses="statuses" />
       </div>
     </main>
 
-    <!-- Toast Container -->
     <div class="toast-container">
       <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
-        <i :class="toast.type === 'success' ? 'bi bi-check-circle-fill' : 'bi bi-exclamation-circle-fill'"></i>
+        <i :class="toast.type === 'success' ? 'bi bi-check-circle' : 'bi bi-exclamation-circle'"></i>
         <span>{{ toast.message }}</span>
       </div>
     </div>
 
-    <!-- Loading Overlay -->
     <div v-if="initialLoading" class="loading-overlay">
       <div class="spinner"></div>
     </div>
@@ -166,19 +144,19 @@ const toasts = ref([])
 
 const headerTitle = computed(() => {
   const titles = {
-    dashboard: 'Dashboard Overview',
-    statuses: 'Site Statuses',
-    urls: 'URL Management',
-    charts: 'Uptime Analytics',
-    history: 'History Log'
+    dashboard: 'Overview',
+    statuses: 'Statuses',
+    urls: 'URL configuration',
+    charts: 'Charts',
+    history: 'History'
   }
-  return titles[activeTab.value] || 'Dashboard'
+  return titles[activeTab.value] || 'Overview'
 })
 
 const headerSubtitle = computed(() => {
   const online = statuses.value.filter(s => s.status === 'OK').length
   const total = statuses.value.length
-  return `${online}/${total} sites online - Last checked: ${new Date().toLocaleTimeString()}`
+  return `${online} of ${total} endpoints OK · Last refresh ${new Date().toLocaleString()}`
 })
 
 function showToast(message, type = 'success', durationMs = 5000) {
@@ -189,12 +167,11 @@ function showToast(message, type = 'success', durationMs = 5000) {
   }, durationMs)
 }
 
-/** Azure returns plain text, e.g. "Polling request initiated. OrchestrationInstanceId: …" */
 function formatPollerToast(body) {
-  if (!body) return 'Poll job started. Loading latest statuses…'
+  if (!body) return 'Poll started. Loading latest data.'
   const m = body.match(/OrchestrationInstanceId:\s*([a-fA-F0-9]+)/)
   if (m) {
-    return `Poll job started. Orchestration: ${m[1]} — loading latest statuses…`
+    return `Poll started (run ${m[1]}). Loading latest data.`
   }
   return body.length > 160 ? `${body.slice(0, 160)}…` : body
 }
@@ -218,7 +195,7 @@ async function loadStatuses() {
 async function handleRefresh() {
   isRefreshing.value = true
   const result = await refreshStatuses()
-  
+
   if (result.success) {
     showToast(formatPollerToast(result.message), 'success', 6000)
     setTimeout(async () => {
@@ -226,7 +203,7 @@ async function handleRefresh() {
       isRefreshing.value = false
     }, 3000)
   } else {
-    showToast(result.error || 'Failed to run poll job', 'error')
+    showToast(result.error || 'Poll request failed', 'error')
     isRefreshing.value = false
   }
 }

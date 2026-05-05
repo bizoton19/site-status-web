@@ -1,25 +1,21 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-link-45deg"></i>
-        Managed URLs
-      </h3>
-      <button 
+      <h3 class="dashboard-card-title">Monitored URLs</h3>
+      <button
         class="btn btn-primary"
-        data-bs-toggle="modal" 
+        type="button"
+        data-bs-toggle="modal"
         data-bs-target="#urlModal"
         @click="openAddModal"
       >
-        <i class="bi bi-plus-lg me-2"></i>
         Add URL
       </button>
     </div>
     <div class="dashboard-card-body">
       <div v-if="urls.length === 0" class="empty-state">
-        <i class="bi bi-link"></i>
-        <h4>No URLs Added</h4>
-        <p>Click "Add URL" to start monitoring a website.</p>
+        <h4>No URLs configured</h4>
+        <p>Use Add URL to register endpoints.</p>
       </div>
       <table v-else class="data-table">
         <thead>
@@ -32,15 +28,11 @@
         <tbody>
           <tr v-for="url in urls" :key="url.UrlName">
             <td>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i class="bi bi-globe2" style="color: #667eea;"></i>
-                <strong>{{ url.UrlName }}</strong>
-              </div>
+              <strong>{{ url.UrlName }}</strong>
             </td>
             <td>
-              <a :href="url.Url" target="_blank" style="color: #4facfe; text-decoration: none;">
+              <a class="link-dashboard" :href="url.Url" target="_blank" rel="noopener noreferrer">
                 {{ url.Url }}
-                <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
               </a>
             </td>
             <td>
@@ -75,8 +67,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
-            <i class="bi bi-link-45deg me-2"></i>
-            {{ isEditing ? 'Edit URL' : 'Add New URL' }}
+            {{ isEditing ? 'Edit URL' : 'Add URL' }}
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -100,21 +91,26 @@
               placeholder="https://example.com"
             >
           </div>
-          <div v-if="formMessage" class="alert" :class="formSuccess ? 'alert-success' : 'alert-danger'" style="background: rgba(102, 126, 234, 0.1); border: none; color: var(--text-primary);">
-            <i :class="formSuccess ? 'bi bi-check-circle me-2' : 'bi bi-exclamation-circle me-2'"></i>
+          <div
+            v-if="formMessage"
+            class="small"
+            :style="{
+              marginTop: '0.5rem',
+              color: formSuccess ? 'var(--success)' : 'var(--danger)'
+            }"
+          >
             {{ formMessage }}
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="btn btn-primary"
             @click="handleSave"
             :disabled="saving"
           >
-            <i class="bi bi-check-lg me-2"></i>
-            {{ saving ? 'Saving...' : 'Save' }}
+            {{ saving ? 'Saving…' : 'Save' }}
           </button>
         </div>
       </div>

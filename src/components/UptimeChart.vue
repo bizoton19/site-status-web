@@ -1,10 +1,7 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-pie-chart-fill"></i>
-        Uptime Distribution
-      </h3>
+      <h3 class="dashboard-card-title">Availability split</h3>
     </div>
     <div class="dashboard-card-body">
       <div class="chart-container">
@@ -41,16 +38,10 @@ const chartData = computed(() => {
     labels: ['Online', 'Offline'],
     datasets: [{
       data: [online || 1, offline],
-      backgroundColor: [
-        'rgba(56, 239, 125, 0.8)',
-        'rgba(244, 92, 67, 0.8)'
-      ],
-      borderColor: [
-        'rgba(56, 239, 125, 1)',
-        'rgba(244, 92, 67, 1)'
-      ],
+      backgroundColor: ['#3d7a52', '#b54545'],
+      borderColor: ['#2f6f44', '#a82a2a'],
       borderWidth: 2,
-      hoverOffset: 10
+      hoverOffset: 4
     }]
   }
 })
@@ -63,7 +54,7 @@ const chartOptions = {
     legend: {
       position: 'bottom',
       labels: {
-        color: '#8b92ab',
+        color: '#5a6572',
         padding: 20,
         font: {
           size: 12
@@ -73,10 +64,10 @@ const chartOptions = {
       }
     },
     tooltip: {
-      backgroundColor: '#242837',
-      titleColor: '#ffffff',
-      bodyColor: '#8b92ab',
-      borderColor: '#2d3348',
+      backgroundColor: '#ffffff',
+      titleColor: '#1c2430',
+      bodyColor: '#5a6572',
+      borderColor: '#d9dde3',
       borderWidth: 1,
       padding: 12,
       displayColors: true,

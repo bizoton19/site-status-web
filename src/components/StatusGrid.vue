@@ -1,23 +1,19 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-heart-pulse"></i>
-        Site Status Monitor
-      </h3>
-      <span class="text-secondary" style="font-size: 0.85rem;">
-        {{ displayedStatuses.length }} of {{ statuses.length }} sites
+      <h3 class="dashboard-card-title">Endpoints</h3>
+      <span class="text-secondary" style="font-size: 0.8rem;">
+        Showing {{ displayedStatuses.length }} of {{ statuses.length }}
       </span>
     </div>
     <div class="dashboard-card-body">
       <div v-if="displayedStatuses.length === 0" class="empty-state">
-        <i class="bi bi-inbox"></i>
-        <h4>No Sites Monitored</h4>
-        <p>Add some URLs to start monitoring their status.</p>
+        <h4>No data</h4>
+        <p>Configure monitored URLs or run a poll to populate results.</p>
       </div>
       <div v-else class="status-grid">
-        <div 
-          v-for="status in displayedStatuses" 
+        <div
+          v-for="status in displayedStatuses"
           :key="status.rowKey"
           class="status-item"
           :class="status.status === 'OK' ? 'online' : 'offline'"
@@ -25,21 +21,14 @@
           <div class="status-item-header">
             <span class="status-item-name">{{ status.urlName }}</span>
             <span class="status-badge" :class="status.status === 'OK' ? 'online' : 'offline'">
-              {{ status.status === 'OK' ? 'Online' : 'Offline' }}
+              {{ status.status === 'OK' ? 'OK' : 'Failed' }}
             </span>
           </div>
           <div class="status-item-url">{{ status.url }}</div>
           <div class="status-item-footer">
-            <span class="status-item-time">
-              <i class="bi bi-clock"></i>
-              {{ formatDate(status.date) }}
-            </span>
-            <span v-if="status.status === 'OK'" style="color: #38ef7d;">
-              <i class="bi bi-check2-all"></i> Healthy
-            </span>
-            <span v-else style="color: #f45c43;">
-              <i class="bi bi-exclamation-diamond"></i> {{ status.description || 'Error' }}
-            </span>
+            <span>{{ formatDate(status.date) }}</span>
+            <span v-if="status.status === 'OK'" class="status-item-detail ok">Normal</span>
+            <span v-else class="status-item-detail err">{{ status.description || 'Error' }}</span>
           </div>
         </div>
       </div>
@@ -69,9 +58,9 @@ const displayedStatuses = computed(() => {
 })
 
 function formatDate(dateString) {
-  if (!dateString) return 'Unknown'
+  if (!dateString) return '—'
   const date = new Date(dateString)
-  if (isNaN(date)) return 'Unknown'
+  if (isNaN(date)) return '—'
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',

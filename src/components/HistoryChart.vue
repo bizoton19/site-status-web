@@ -1,10 +1,7 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-graph-up"></i>
-        Uptime Trend (Last 7 Days)
-      </h3>
+      <h3 class="dashboard-card-title">Uptime trend (sample)</h3>
     </div>
     <div class="dashboard-card-body">
       <div class="chart-container" style="height: 350px;">
@@ -17,19 +14,18 @@
 <script setup>
 import { computed } from 'vue'
 import { Line } from 'vue-chartjs'
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  PointElement, 
-  LineElement, 
-  Title, 
-  Tooltip, 
-  Legend,
-  Filler
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 const props = defineProps({
   statuses: {
@@ -59,16 +55,15 @@ const chartData = computed(() => {
     datasets: [{
       label: 'Uptime %',
       data: mockData,
-      fill: true,
-      backgroundColor: 'rgba(102, 126, 234, 0.1)',
-      borderColor: 'rgba(102, 126, 234, 1)',
-      borderWidth: 3,
-      tension: 0.4,
-      pointBackgroundColor: 'rgba(102, 126, 234, 1)',
-      pointBorderColor: '#242837',
+      fill: false,
+      borderColor: '#154273',
+      borderWidth: 2,
+      tension: 0.2,
+      pointBackgroundColor: '#154273',
+      pointBorderColor: '#ffffff',
       pointBorderWidth: 2,
-      pointRadius: 6,
-      pointHoverRadius: 8
+      pointRadius: 4,
+      pointHoverRadius: 5
     }]
   }
 })
@@ -81,10 +76,10 @@ const chartOptions = {
       display: false
     },
     tooltip: {
-      backgroundColor: '#242837',
-      titleColor: '#ffffff',
-      bodyColor: '#8b92ab',
-      borderColor: '#2d3348',
+      backgroundColor: '#ffffff',
+      titleColor: '#1c2430',
+      bodyColor: '#5a6572',
+      borderColor: '#d9dde3',
       borderWidth: 1,
       padding: 12,
       callbacks: {
@@ -95,11 +90,11 @@ const chartOptions = {
   scales: {
     x: {
       grid: {
-        color: 'rgba(45, 51, 72, 0.5)',
+        color: '#e8eaed',
         drawBorder: false
       },
       ticks: {
-        color: '#8b92ab',
+        color: '#5a6572',
         font: {
           size: 12
         }
@@ -109,11 +104,11 @@ const chartOptions = {
       min: 80,
       max: 100,
       grid: {
-        color: 'rgba(45, 51, 72, 0.5)',
+        color: '#e8eaed',
         drawBorder: false
       },
       ticks: {
-        color: '#8b92ab',
+        color: '#5a6572',
         font: {
           size: 12
         },

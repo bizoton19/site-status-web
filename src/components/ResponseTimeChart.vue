@@ -1,10 +1,7 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">
-        <i class="bi bi-bar-chart-fill"></i>
-        Site Status Overview
-      </h3>
+      <h3 class="dashboard-card-title">Endpoint status</h3>
     </div>
     <div class="dashboard-card-body">
       <div class="chart-container">
@@ -43,16 +40,12 @@ const chartData = computed(() => {
   
   const data = props.statuses.slice(0, 8).map(s => s.status === 'OK' ? 100 : 0)
   
-  const backgroundColors = props.statuses.slice(0, 8).map(s => 
-    s.status === 'OK' 
-      ? 'rgba(56, 239, 125, 0.6)' 
-      : 'rgba(244, 92, 67, 0.6)'
+  const backgroundColors = props.statuses.slice(0, 8).map(s =>
+    s.status === 'OK' ? '#5a9b6d' : '#c75a5a'
   )
-  
-  const borderColors = props.statuses.slice(0, 8).map(s => 
-    s.status === 'OK' 
-      ? 'rgba(56, 239, 125, 1)' 
-      : 'rgba(244, 92, 67, 1)'
+
+  const borderColors = props.statuses.slice(0, 8).map(s =>
+    s.status === 'OK' ? '#2f6f44' : '#a82a2a'
   )
   
   return {
@@ -63,7 +56,7 @@ const chartData = computed(() => {
       backgroundColor: backgroundColors,
       borderColor: borderColors,
       borderWidth: 2,
-      borderRadius: 8,
+      borderRadius: 2,
       borderSkipped: false
     }]
   }
@@ -78,10 +71,10 @@ const chartOptions = {
       display: false
     },
     tooltip: {
-      backgroundColor: '#242837',
-      titleColor: '#ffffff',
-      bodyColor: '#8b92ab',
-      borderColor: '#2d3348',
+      backgroundColor: '#ffffff',
+      titleColor: '#1c2430',
+      bodyColor: '#5a6572',
+      borderColor: '#d9dde3',
       borderWidth: 1,
       padding: 12,
       callbacks: {
@@ -101,7 +94,7 @@ const chartOptions = {
         display: false
       },
       ticks: {
-        color: '#8b92ab',
+        color: '#5a6572',
         font: {
           size: 11
         }
