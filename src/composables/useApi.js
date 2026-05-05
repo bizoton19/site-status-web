@@ -4,22 +4,37 @@ const DEFAULT_BASE =
   'https://healthchker-akhghwe9adgxcqdt.eastus-01.azurewebsites.net/api'
 
 /**
- * Manual poll: GET {VITE_API_BASE_URL}/{VITE_POLLER_FUNCTION}?code=…
- * Example: /api/httpPollerTrigger — returns plain text (orchestration id).
+ * HTTP routes match the Function App’s invoke URLs (see Azure Portal or
+ * `az functionapp function list -g functions-cpsc1 -n healthchker`).
+ * Paths are case-insensitive on Azure; defaults match invokeUrlTemplate lowercase.
  */
+
+/** Manual poll — GET, plain-text orchestration message */
 function getPollerFunctionName() {
   const raw = import.meta.env.VITE_POLLER_FUNCTION
   if (raw && String(raw).trim()) return String(raw).trim()
-  return 'httpPollerTrigger'
+  return 'httppollertrigger'
 }
 
-/**
- * URL list: GET {VITE_API_BASE_URL}/{VITE_URL_LIST_FUNCTION}?code=…
- */
+/** Monitored URL rows — GET JSON */
 function getUrlListReaderFunctionName() {
   const raw = import.meta.env.VITE_URL_LIST_FUNCTION
   if (raw && String(raw).trim()) return String(raw).trim()
-  return 'statusUrlListReader'
+  return 'statusurllistreader'
+}
+
+/** Current site status rows — GET JSON (statusTable) */
+function getStatusReaderFunctionName() {
+  const raw = import.meta.env.VITE_STATUS_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'statussitestatereader'
+}
+
+/** Add / update / delete URLs — POST, PUT, DELETE (+ queue) */
+function getUrlPersisterFunctionName() {
+  const raw = import.meta.env.VITE_URL_PERSISTER_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'urlpersister'
 }
 
 function getBaseUrl() {
@@ -71,7 +86,7 @@ export function useApi() {
     error.value = null
 
     try {
-      const response = await fetch(apiUrl('statuses'), {
+      const response = await fetch(apiUrl(getStatusReaderFunctionName()), {
         method: 'GET',
         credentials: 'omit'
       })
@@ -146,7 +161,7 @@ export function useApi() {
     error.value = null
 
     try {
-      const response = await fetch(apiUrl('url'), {
+      const response = await fetch(apiUrl(getUrlPersisterFunctionName()), {
         method: 'POST',
         credentials: 'omit',
         headers: {
@@ -179,7 +194,7 @@ export function useApi() {
     error.value = null
 
     try {
-      const response = await fetch(apiUrl('url'), {
+      const response = await fetch(apiUrl(getUrlPersisterFunctionName()), {
         method: 'PUT',
         credentials: 'omit',
         headers: {
@@ -213,7 +228,7 @@ export function useApi() {
 
     try {
       const response = await fetch(
-        apiUrl('status', { urlName }),
+        apiUrl(getUrlPersisterFunctionName(), { urlName }),
         {
           method: 'DELETE',
           credentials: 'omit'
