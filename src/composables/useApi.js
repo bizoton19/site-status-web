@@ -13,6 +13,15 @@ function getPollerFunctionName() {
   return 'httpPollerTrigger'
 }
 
+/**
+ * URL list: GET {VITE_API_BASE_URL}/{VITE_URL_LIST_FUNCTION}?code=…
+ */
+function getUrlListReaderFunctionName() {
+  const raw = import.meta.env.VITE_URL_LIST_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'statusUrlListReader'
+}
+
 function getBaseUrl() {
   const raw = import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE
   return raw.replace(/\/$/, '')
@@ -112,7 +121,7 @@ export function useApi() {
     error.value = null
 
     try {
-      const response = await fetch(apiUrl('urls'), {
+      const response = await fetch(apiUrl(getUrlListReaderFunctionName()), {
         method: 'GET',
         credentials: 'omit'
       })
