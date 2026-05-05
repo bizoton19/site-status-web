@@ -71,12 +71,25 @@
             :disabled="isRefreshing"
             type="button"
             title="Triggers the configured Azure poll function, then reloads status data."
+            :aria-busy="isRefreshing"
+            aria-live="polite"
           >
-            <i class="bi bi-arrow-repeat"></i>
-            {{ isRefreshing ? 'Starting…' : 'Run poll' }}
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            {{ isRefreshing ? 'Working…' : 'Run poll' }}
           </button>
         </div>
       </header>
+
+      <div
+        v-if="pollBannerText"
+        class="poll-feedback-banner"
+        :class="{ 'is-busy': pollBannerBusy, 'is-error': pollBannerError }"
+        role="status"
+        aria-live="polite"
+      >
+        <span v-if="pollBannerBusy" class="poll-feedback-spinner" aria-hidden="true"></span>
+        <span>{{ pollBannerText }}</span>
+      </div>
 
       <div v-if="activeTab === 'dashboard'" class="fade-in">
         <StatsOverview :statuses="statuses" />
@@ -109,9 +122,9 @@
       </div>
     </main>
 
-    <div class="toast-container">
+    <div class="toast-container" aria-live="polite">
       <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
-        <i :class="toast.type === 'success' ? 'bi bi-check-circle' : 'bi bi-exclamation-circle'"></i>
+        <i :class="toastIconClass(toast.type)" aria-hidden="true"></i>
         <span>{{ toast.message }}</span>
       </div>
     </div>
@@ -144,6 +157,10 @@ const isRefreshing = ref(false)
 const initialLoading = ref(true)
 const toasts = ref([])
 
+const pollBannerText = ref('')
+const pollBannerBusy = ref(false)
+const pollBannerError = ref(false)
+
 const historyDisplayRows = computed(() => {
   const rows = toDisplayHistoryRows(historyRaw.value)
   return [...rows].sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -174,6 +191,12 @@ function showToast(message, type = 'success', durationMs = 5000) {
   setTimeout(() => {
     toasts.value = toasts.value.filter(t => t.id !== id)
   }, durationMs)
+}
+
+function toastIconClass(type) {
+  if (type === 'error') return 'bi bi-exclamation-circle'
+  if (type === 'info') return 'bi bi-hourglass-split'
+  return 'bi bi-check-circle'
 }
 
 function formatPollerToast(body) {
@@ -210,17 +233,36 @@ async function refreshData() {
 }
 
 async function handleRefresh() {
+  pollBannerError.value = false
+  pollBannerBusy.value = true
+  pollBannerText.value = 'Sending poll request to Azure…'
   isRefreshing.value = true
+
+  showToast('Poll request sent. Waiting for response…', 'info', 5000)
+
   const result = await refreshStatuses()
 
   if (result.success) {
-    showToast(formatPollerToast(result.message), 'success', 6000)
-    setTimeout(async () => {
-      await refreshData()
-      isRefreshing.value = false
-    }, 3000)
+    const msg = formatPollerToast(result.message)
+    pollBannerText.value = msg
+    showToast(msg, 'success', 10000)
+    await new Promise((r) => setTimeout(r, 3000))
+    pollBannerText.value = 'Loading latest statuses and history…'
+    await refreshData()
+    pollBannerBusy.value = false
+    const t = new Date().toLocaleTimeString()
+    pollBannerText.value = `Dashboard updated at ${t}.`
+    showToast(`Data reloaded at ${t}.`, 'success', 5000)
+    isRefreshing.value = false
+    setTimeout(() => {
+      pollBannerText.value = ''
+    }, 8000)
   } else {
-    showToast(result.error || 'Poll request failed', 'error')
+    pollBannerBusy.value = false
+    pollBannerError.value = true
+    const err = result.error || 'Poll request failed'
+    pollBannerText.value = err
+    showToast(err, 'error', 10000)
     isRefreshing.value = false
   }
 }
