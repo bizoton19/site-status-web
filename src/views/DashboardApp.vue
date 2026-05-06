@@ -188,10 +188,13 @@ const filterLabel = computed(() => {
 
 function goDashboardTab(tab) {
   if (!DASHBOARD_TABS.includes(tab)) return
-  const desiredQuery = tab === 'dashboard' ? {} : { tab }
+  // Clean URL (/dashboard) = Statuses by default; Overview uses ?tab=dashboard
+  const desiredQuery = tab === 'statuses' ? {} : { tab }
   const onDashboard = route.path === '/dashboard'
   const queryMatches =
-    tab === 'dashboard' ? !route.query.tab : route.query.tab === tab
+    tab === 'statuses'
+      ? !route.query.tab || route.query.tab === 'statuses'
+      : route.query.tab === tab
   if (!onDashboard || !queryMatches) {
     router.push({ path: '/dashboard', query: desiredQuery })
   }
@@ -212,7 +215,11 @@ function syncTabFromRoute() {
   }
   if (route.path !== '/dashboard') return
   const q = route.query.tab
-  const t = typeof q === 'string' ? q : 'dashboard'
+  if (!q || q === 'statuses') {
+    activeTab.value = 'statuses'
+    return
+  }
+  const t = typeof q === 'string' ? q : 'statuses'
   if (t === 'urls') {
     activeTab.value = 'urls'
     return
@@ -220,7 +227,7 @@ function syncTabFromRoute() {
   if (DASHBOARD_TABS.includes(t)) {
     activeTab.value = t
   } else {
-    activeTab.value = 'dashboard'
+    activeTab.value = 'statuses'
   }
 }
 

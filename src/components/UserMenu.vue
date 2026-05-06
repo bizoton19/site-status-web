@@ -1,27 +1,37 @@
 <template>
   <div class="user-menu">
-    <img
-      v-if="photoUrl"
-      :src="photoUrl"
-      alt=""
-      class="user-avatar"
-      width="36"
-      height="36"
-    />
-    <div v-else class="user-avatar user-avatar-placeholder" aria-hidden="true">
-      {{ initials }}
-    </div>
-    <div class="user-meta">
-      <div class="user-name text-truncate" :title="displayName">{{ displayName }}</div>
-      <button type="button" class="btn-signout" @click="onLogout">Sign out</button>
-    </div>
+    <template v-if="authState.account">
+      <img
+        v-if="photoUrl"
+        :src="photoUrl"
+        alt=""
+        class="user-avatar"
+        width="36"
+        height="36"
+      />
+      <div v-else class="user-avatar user-avatar-placeholder" aria-hidden="true">
+        {{ initials }}
+      </div>
+      <div class="user-meta">
+        <div class="user-name text-truncate" :title="displayName">{{ displayName }}</div>
+        <button type="button" class="btn-signout" @click="onLogout">Sign out</button>
+      </div>
+    </template>
+    <template v-else-if="aadConfigured">
+      <button type="button" class="btn-signin" @click="onSignIn">Sign in</button>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { msalInstance, authState, signOut } from '../auth/msalClient.js'
-import { loginRequest } from '../auth/authConfig.js'
+import { loginRequest, msalConfig } from '../auth/authConfig.js'
+
+const router = useRouter()
+
+const aadConfigured = computed(() => Boolean(msalConfig.auth.clientId))
 
 const photoUrl = ref(null)
 let photoObjectUrl = null
@@ -79,6 +89,11 @@ watch(
   },
   { immediate: true }
 )
+
+async function onSignIn() {
+  sessionStorage.setItem('auth_return', router.currentRoute.value.fullPath)
+  await msalInstance.loginRedirect({ ...loginRequest })
+}
 
 async function onLogout() {
   revokePhoto()
@@ -148,5 +163,20 @@ onUnmounted(() => {
 
 .btn-signout:hover {
   color: var(--accent);
+}
+
+.btn-signin {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.btn-signin:hover {
+  background: var(--surface-muted);
+  border-color: var(--accent);
 }
 </style>

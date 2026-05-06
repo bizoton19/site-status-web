@@ -3,16 +3,16 @@
     <div class="landing-card">
       <h1>Site status</h1>
       <p class="lead">
-        Sign in with your Microsoft work or school account to open the monitoring dashboard and URL
-        configuration.
+        The dashboard is open without sign-in. Use <strong>Sign in</strong> in the header if you
+        want your Microsoft account and profile on this optional page.
       </p>
       <div v-if="showUnconfigured" class="alert alert-warning" role="status">
         Azure AD is not configured. Add <code>VITE_AAD_CLIENT_ID</code> and related variables to
-        <code>.env</code> (see <code>.env.example</code>).
+        <code>.env</code> (see <code>.env.example</code>) to enable Sign in.
       </div>
       <div class="landing-actions">
         <button type="button" class="btn btn-primary btn-lg" @click="goToApp">
-          Sign in
+          Open dashboard
         </button>
       </div>
     </div>
@@ -21,15 +21,12 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { msalConfig } from '../auth/authConfig.js'
 
-const route = useRoute()
 const router = useRouter()
 
-const showUnconfigured = computed(
-  () => route.query.auth === 'unconfigured' || !msalConfig.auth.clientId
-)
+const showUnconfigured = computed(() => !msalConfig.auth.clientId)
 
 function goToApp() {
   router.push('/dashboard')
