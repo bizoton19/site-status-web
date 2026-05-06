@@ -20,7 +20,7 @@
           <div
             class="nav-item"
             :class="{ active: activeTab === 'dashboard' }"
-            @click="goDashboardTab('dashboard')"
+            @click="goOverview"
           >
             <i class="bi bi-columns-gap"></i>
             <span>Overview</span>
@@ -40,7 +40,7 @@
           <div
             class="nav-item"
             :class="{ active: activeTab === 'charts' }"
-            @click="goDashboardTab('charts')"
+            @click="goCharts"
           >
             <i class="bi bi-bar-chart-line"></i>
             <span>Charts</span>
@@ -48,7 +48,7 @@
           <div
             class="nav-item"
             :class="{ active: activeTab === 'history' }"
-            @click="goDashboardTab('history')"
+            @click="goHistory"
           >
             <i class="bi bi-clock-history"></i>
             <span>History</span>
@@ -58,6 +58,15 @@
     </aside>
 
     <main class="main-content">
+      <div
+        v-if="showAuthUnconfiguredBanner"
+        class="alert alert-warning mb-3"
+        role="status"
+      >
+        Sign-in is not configured. Add Azure AD variables to <code>.env</code> (see
+        <code>.env.example</code>).
+      </div>
+
       <header class="dashboard-header">
         <div class="header-left">
           <h2>{{ headerTitle }}</h2>
@@ -156,8 +165,6 @@ import HistoryChart from '../components/HistoryChart.vue'
 import HistoryLog from '../components/HistoryLog.vue'
 import UserMenu from '../components/UserMenu.vue'
 
-const DASHBOARD_TABS = ['dashboard', 'statuses', 'charts', 'history']
-
 const route = useRoute()
 const router = useRouter()
 const { fetchStatuses, fetchStatusHistory, refreshStatuses } = useApi()
@@ -175,6 +182,8 @@ const pollBannerText = ref('')
 const pollBannerBusy = ref(false)
 const pollBannerError = ref(false)
 
+const showAuthUnconfiguredBanner = computed(() => route.query.auth === 'unconfigured')
+
 const historyDisplayRows = computed(() => {
   const rows = toDisplayHistoryRows(historyRaw.value)
   return [...rows].sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -186,53 +195,48 @@ const filterLabel = computed(() => {
   return 'All'
 })
 
-function goDashboardTab(tab) {
-  if (!DASHBOARD_TABS.includes(tab)) return
-  // Clean URL (/dashboard) = Statuses by default; Overview uses ?tab=dashboard
-  const desiredQuery = tab === 'statuses' ? {} : { tab }
-  const onDashboard = route.path === '/dashboard'
-  const queryMatches =
-    tab === 'statuses'
-      ? !route.query.tab || route.query.tab === 'statuses'
-      : route.query.tab === tab
-  if (!onDashboard || !queryMatches) {
-    router.push({ path: '/dashboard', query: desiredQuery })
-  }
-  activeTab.value = tab
+function goOverview() {
+  if (route.path !== '/dashboard') router.push('/dashboard')
 }
 
 function goManage() {
-  if (route.path !== '/manage') {
-    router.push('/manage')
-  }
-  activeTab.value = 'urls'
+  if (route.path !== '/manage') router.push('/manage')
+}
+
+function goCharts() {
+  if (route.path !== '/charts') router.push('/charts')
+}
+
+function goHistory() {
+  if (route.path !== '/history') router.push('/history')
 }
 
 function syncTabFromRoute() {
-  if (route.path === '/manage') {
-    activeTab.value = 'urls'
-    return
-  }
-  if (route.path !== '/dashboard') return
-  const q = route.query.tab
-  if (!q || q === 'statuses') {
+  const p = route.path
+  if (p === '/statuses') {
     activeTab.value = 'statuses'
     return
   }
-  const t = typeof q === 'string' ? q : 'statuses'
-  if (t === 'urls') {
+  if (p === '/dashboard') {
+    activeTab.value = 'dashboard'
+    return
+  }
+  if (p === '/manage') {
     activeTab.value = 'urls'
     return
   }
-  if (DASHBOARD_TABS.includes(t)) {
-    activeTab.value = t
-  } else {
-    activeTab.value = 'statuses'
+  if (p === '/charts') {
+    activeTab.value = 'charts'
+    return
+  }
+  if (p === '/history') {
+    activeTab.value = 'history'
+    return
   }
 }
 
 watch(
-  () => [route.path, route.query.tab],
+  () => route.path,
   () => {
     syncTabFromRoute()
   },
@@ -241,12 +245,12 @@ watch(
 
 function openStatusesTab() {
   statusesFilter.value = 'all'
-  goDashboardTab('statuses')
+  if (route.path !== '/statuses') router.push('/statuses')
 }
 
 function onStatNavigate(filter) {
   statusesFilter.value = filter
-  goDashboardTab('statuses')
+  if (route.path !== '/statuses') router.push('/statuses')
 }
 
 const headerTitle = computed(() => {

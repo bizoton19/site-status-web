@@ -3,8 +3,8 @@
     <div class="landing-card">
       <h1>Site status</h1>
       <p class="lead">
-        The dashboard is open without sign-in. Use <strong>Sign in</strong> in the header if you
-        want your Microsoft account and profile on this optional page.
+        Open the public <strong>Statuses</strong> view, or sign in when you use Overview, URLs,
+        Charts, or History.
       </p>
       <div v-if="showUnconfigured" class="alert alert-warning" role="status">
         Azure AD is not configured. Add <code>VITE_AAD_CLIENT_ID</code> and related variables to
@@ -29,7 +29,7 @@ const router = useRouter()
 const showUnconfigured = computed(() => !msalConfig.auth.clientId)
 
 function goToApp() {
-  router.push('/dashboard')
+  router.push('/statuses')
 }
 </script>
 
