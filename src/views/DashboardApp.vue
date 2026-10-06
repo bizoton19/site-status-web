@@ -36,6 +36,10 @@
             <i class="bi bi-link-45deg"></i>
             <span>URLs</span>
           </div>
+          <div class="nav-item" @click="goPublicStatuses">
+            <i class="bi bi-globe2"></i>
+            <span>Public statuses</span>
+          </div>
         </div>
 
         <div class="nav-section">
@@ -241,6 +245,10 @@ function goCharts() {
 
 function goHistory() {
   if (route.path !== '/history') router.push('/history')
+}
+
+function goPublicStatuses() {
+  router.push('/allstatuses')
 }
 
 function syncTabFromRoute() {

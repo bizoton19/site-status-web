@@ -7,6 +7,10 @@
         <Outpost13LogoMark :size="30" />
         <span>Outpost13</span>
       </button>
+      <nav class="home-nav-links" aria-label="Primary">
+        <router-link class="home-nav-link" to="/allstatuses">Public statuses</router-link>
+        <router-link class="home-nav-link" to="/faq">FAQ</router-link>
+      </nav>
       <div class="home-nav-actions">
         <ThemeToggle />
         <Show v-if="isClerkConfigured" when="signed-in">
@@ -131,10 +135,10 @@
 
     <PublicDirectoryPanel
       title="Live endpoints"
-      lead="Smaller public owner groups (5 URLs or fewer). Open the full directory for every group."
-      empty-message="No small public groups yet. Larger groups appear on the full directory — or sign in and mark endpoints public."
+      lead="Public owner groups on the directory (up to 5 groups here, previewing up to 5 URLs each). Open the full directory for every group."
+      empty-message="No public endpoints yet. Sign in, add a URL, and set visibility to Public — or open Public statuses for the full directory."
       :max-urls="5"
-      :page-size="10"
+      :page-size="5"
       :show-see-more="true"
       :emit-summary="true"
       @summary="applySummary"
@@ -310,6 +314,29 @@ function goToApp() {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 0;
+  flex-wrap: wrap;
+}
+
+.home-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.home-nav-link {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.home-nav-link:hover,
+.home-nav-link.router-link-active {
+  color: var(--text-accent);
 }
 
 .brand-button {
@@ -619,6 +646,12 @@ function goToApp() {
 @media (max-width: 640px) {
   .home-nav {
     align-items: flex-start;
+  }
+
+  .home-nav-links {
+    width: 100%;
+    margin: 0;
+    order: 3;
   }
 
   .home-nav-actions,

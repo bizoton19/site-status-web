@@ -7,6 +7,10 @@
         <Outpost13LogoMark :size="30" />
         <span>Outpost13</span>
       </button>
+      <nav class="home-nav-links" aria-label="Primary">
+        <router-link class="home-nav-link" to="/allstatuses">Public statuses</router-link>
+        <router-link class="home-nav-link" to="/faq">FAQ</router-link>
+      </nav>
       <div class="home-nav-actions">
         <ThemeToggle />
         <button type="button" class="btn btn-secondary btn-sm" @click="goHome">
@@ -88,6 +92,29 @@ function goToApp() {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 0;
+  flex-wrap: wrap;
+}
+
+.home-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+
+.home-nav-link {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.home-nav-link:hover,
+.home-nav-link.router-link-active {
+  color: var(--text-accent);
 }
 
 .brand-button {

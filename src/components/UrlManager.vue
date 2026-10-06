@@ -5,9 +5,18 @@
       <div class="header-actions">
         <button
           v-if="selectedCount > 0"
+          class="btn btn-secondary"
+          type="button"
+          :disabled="bulkPolling || bulkDeleting"
+          @click="handleBulkPoll"
+        >
+          {{ bulkPolling ? 'Polling…' : `Poll selected (${selectedCount})` }}
+        </button>
+        <button
+          v-if="selectedCount > 0"
           class="btn btn-secondary btn-danger-outline"
           type="button"
-          :disabled="bulkDeleting"
+          :disabled="bulkDeleting || bulkPolling"
           @click="handleBulkDelete"
         >
           {{ bulkDeleting ? 'Deleting…' : `Delete selected (${selectedCount})` }}
@@ -89,7 +98,7 @@
               <th>Visibility</th>
               <th>URL</th>
               <th>Headers</th>
-              <th style="width: 120px;">Actions</th>
+              <th style="width: 160px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -152,6 +161,18 @@
               </td>
               <td>
                 <div class="actions">
+                  <button
+                    class="btn-icon"
+                    type="button"
+                    title="Poll this URL"
+                    :disabled="pollingName === urlNameOf(url) || bulkPolling"
+                    @click="handlePoll(urlNameOf(url))"
+                  >
+                    <i
+                      class="bi"
+                      :class="pollingName === urlNameOf(url) ? 'bi-arrow-repeat spin' : 'bi-broadcast'"
+                    ></i>
+                  </button>
                   <button class="btn-icon" type="button" title="Edit" @click="openEditModal(url)">
                     <i class="bi bi-pencil"></i>
                   </button>
@@ -466,7 +487,17 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
-const { fetchUrls, fetchUrlsWithRetry, addUrl, addUrls, updateUrl, deleteUrl, deleteUrls, fetchDomainHeaders } = useApi()
+const {
+  fetchUrls,
+  fetchUrlsWithRetry,
+  addUrl,
+  addUrls,
+  updateUrl,
+  deleteUrl,
+  deleteUrls,
+  fetchDomainHeaders,
+  pollUrl
+} = useApi()
 const domainProfiles = ref([])
 
 const urls = ref([])
@@ -476,6 +507,8 @@ const pasteText = ref('')
 const modalOpen = ref(false)
 const saving = ref(false)
 const bulkDeleting = ref(false)
+const bulkPolling = ref(false)
+const pollingName = ref('')
 const formMessage = ref('')
 const formSuccess = ref(false)
 const actionMessage = ref('')
@@ -935,6 +968,61 @@ async function handleSave() {
   saving.value = false
 }
 
+async function handlePoll(urlName) {
+  if (!urlName || pollingName.value || bulkPolling.value) return
+
+  pollingName.value = urlName
+  actionMessage.value = ''
+  const result = await pollUrl(urlName)
+  pollingName.value = ''
+
+  if (result.success) {
+    const status = result.data?.status || result.data?.Status || 'done'
+    actionMessage.value = `Polled "${urlName}" → ${status}`
+    actionSuccess.value = true
+    await loadUrls()
+    emit('urlUpdated')
+    setTimeout(() => { actionMessage.value = '' }, 5000)
+  } else {
+    actionMessage.value = result.error || `Failed to poll "${urlName}".`
+    actionSuccess.value = false
+  }
+}
+
+async function handleBulkPoll() {
+  const names = [...selectedNames.value].filter(Boolean)
+  if (names.length === 0 || bulkPolling.value) return
+
+  bulkPolling.value = true
+  actionMessage.value = ''
+  let ok = 0
+  const failures = []
+
+  for (const name of names) {
+    pollingName.value = name
+    const result = await pollUrl(name)
+    if (result.success) ok += 1
+    else failures.push({ name, error: result.error || 'failed' })
+  }
+
+  pollingName.value = ''
+  bulkPolling.value = false
+  await loadUrls()
+  emit('urlUpdated')
+
+  if (failures.length === 0) {
+    actionMessage.value = `Polled ${ok} URL${ok === 1 ? '' : 's'}.`
+    actionSuccess.value = true
+  } else if (ok > 0) {
+    actionMessage.value = `Polled ${ok}; ${failures.length} failed (${failures[0].name}).`
+    actionSuccess.value = false
+  } else {
+    actionMessage.value = failures[0]?.error || 'Failed to poll selected URLs'
+    actionSuccess.value = false
+  }
+  setTimeout(() => { actionMessage.value = '' }, 6000)
+}
+
 async function handleDelete(urlName) {
   if (!urlName) return
   if (!confirm(`Delete "${urlName}"?`)) return
@@ -1000,6 +1088,21 @@ defineExpose({ loadUrls, loadDomainProfiles })
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-end;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.spin {
+  display: inline-block;
+  animation: urlmgr-spin 0.8s linear infinite;
+}
+
+@keyframes urlmgr-spin {
+  to { transform: rotate(360deg); }
 }
 
 .btn-danger-outline {

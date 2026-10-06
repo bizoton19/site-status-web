@@ -4,6 +4,10 @@
       <div class="site-footer-logo" aria-hidden="true">
         <Outpost13LogoMark :size="84" />
       </div>
+      <nav class="site-footer-links" aria-label="Footer">
+        <router-link to="/allstatuses">Public statuses</router-link>
+        <router-link to="/faq">FAQ</router-link>
+      </nav>
       <p class="site-footer-copy">
         © {{ year }} Outpost13. All rights reserved.
       </p>
@@ -42,6 +46,27 @@ const year = new Date().getFullYear()
   filter:
     drop-shadow(0 0 4px rgba(34, 197, 94, 0.28))
     drop-shadow(0 0 10px rgba(34, 197, 94, 0.16));
+}
+
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.1rem;
+}
+
+.site-footer-links a {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.site-footer-links a:hover,
+.site-footer-links a.router-link-active {
+  color: var(--text-accent);
 }
 
 .site-footer-copy {

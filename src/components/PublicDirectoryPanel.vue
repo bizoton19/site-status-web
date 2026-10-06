@@ -188,7 +188,10 @@ const props = defineProps({
   showFilters: { type: Boolean, default: false },
   showPagination: { type: Boolean, default: false },
   showSeeMore: { type: Boolean, default: false },
-  /** When set, only owner groups with this many URLs or fewer are returned. */
+  /**
+   * Landing preview: ask the API to return at most this many URLs per owner group.
+   * Does not hide large groups (server lists every matching owner; pageSize caps groups).
+   */
   maxUrls: { type: Number, default: null },
   pageSize: { type: Number, default: 10 },
   /** When true, emit summary for parent hero stats. */
@@ -222,15 +225,17 @@ async function loadDirectory() {
     if (props.emitSummary) {
       emit('summary', data.summary || {})
     }
-    // Prefer server maxUrls; also filter client-side so landing stays correct
-    // if an older API build is still serving.
-    const groups = data.groups || []
-    directoryGroups.value = props.maxUrls == null
-      ? groups
-      : groups.filter((g) => (g.urlCount ?? 0) <= props.maxUrls)
+    // Server already applies maxUrls as a per-group item cap (not a group filter).
+    directoryGroups.value = Array.isArray(data.groups) ? data.groups : []
     totalPages.value = data.totalPages || 1
     totalOwners.value = data.totalOwners || 0
     directoryPage.value = data.page || directoryPage.value
+  } catch (err) {
+    console.error('Public directory load failed:', err)
+    directoryGroups.value = []
+    if (props.emitSummary) {
+      emit('summary', {})
+    }
   } finally {
     directoryLoading.value = false
   }

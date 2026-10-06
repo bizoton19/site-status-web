@@ -18,6 +18,13 @@ function getPollerFunctionName() {
   return 'httppollertrigger'
 }
 
+/** Authenticated single-URL poll — GET/POST JSON */
+function getPollUrlFunctionName() {
+  const raw = import.meta.env.VITE_POLL_URL_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'pollurl'
+}
+
 /** Monitored URL rows — GET JSON */
 function getUrlListReaderFunctionName() {
   const raw = import.meta.env.VITE_URL_LIST_FUNCTION
@@ -394,6 +401,46 @@ const empty = {
     return { ok: true }
   }
 
+  /**
+   * Poll a single monitored URL for the signed-in tenant.
+   * Updates statusTable + history for that urlName only (no full fan-out).
+   * @param {string} urlName
+   */
+  async function pollUrl(urlName) {
+    const name = String(urlName || '').trim()
+    if (!name) {
+      return { success: false, error: 'urlName is required.' }
+    }
+
+    try {
+      const response = await fetch(
+        apiUrl(getPollUrlFunctionName(), { urlName: name }),
+        {
+          method: 'POST',
+          credentials: 'omit',
+          headers: await authHeaders()
+        }
+      )
+
+      if (!response.ok) {
+        let detail = `HTTP error! status: ${response.status}`
+        try {
+          const body = await response.json()
+          if (body?.error) detail = body.error
+        } catch {
+          /* ignore non-JSON error bodies */
+        }
+        throw new Error(detail)
+      }
+
+      const data = await response.json()
+      return { success: true, data }
+    } catch (err) {
+      console.error('Error polling URL:', err)
+      return { success: false, error: err.message || 'Poll failed.' }
+    }
+  }
+
   /** @deprecated Prefer submitPollRequest for UI; kept for callers that need to await. */
   async function refreshStatuses() {
     const sent = submitPollRequest()
@@ -691,6 +738,7 @@ const empty = {
     fetchStatusStats,
     refreshStatuses,
     submitPollRequest,
+    pollUrl,
     fetchUrls,
     fetchUrlsWithRetry,
     addUrl,
