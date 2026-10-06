@@ -2,9 +2,20 @@
   <div class="dashboard-card">
     <div class="dashboard-card-header">
       <h3 class="dashboard-card-title">Monitored URLs</h3>
-      <button class="btn btn-primary" type="button" @click="openAddModal">
-        Add URL
-      </button>
+      <div class="header-actions">
+        <button
+          v-if="selectedCount > 0"
+          class="btn btn-secondary btn-danger-outline"
+          type="button"
+          :disabled="bulkDeleting"
+          @click="handleBulkDelete"
+        >
+          {{ bulkDeleting ? 'Deleting…' : `Delete selected (${selectedCount})` }}
+        </button>
+        <button class="btn btn-primary" type="button" @click="openAddModal">
+          Add URL
+        </button>
+      </div>
     </div>
     <div class="dashboard-card-body">
       <div
@@ -19,85 +30,145 @@
         <h4>No URLs configured</h4>
         <p>Use Add URL to register endpoints.</p>
       </div>
-      <table v-else class="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Visibility</th>
-            <th>URL</th>
-            <th>Headers</th>
-            <th style="width: 120px;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="url in urls" :key="url.UrlName || url.urlName">
-            <td>
-              <strong>{{ url.UrlName || url.urlName }}</strong>
-            </td>
-            <td>
-              <span class="cat-pill">{{ displayCategory(url) }}</span>
-            </td>
-            <td>
-              <span
-                class="vis-pill"
-                :class="(url.Visibility || url.visibility || 'private') === 'public' ? 'is-public' : 'is-private'"
-              >
-                {{ url.Visibility || url.visibility || 'private' }}
-              </span>
-            </td>
-            <td>
-              <a
-                class="link-dashboard"
-                :href="url.Url || url.url"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ url.Url || url.url }}
-              </a>
-            </td>
-            <td>
-              <div class="headers-cell">
-                <template v-if="domainHeadersForUrl(url).length">
-                  <span
-                    v-for="h in domainHeadersForUrl(url)"
-                    :key="`d-${h.key}`"
-                    class="header-chip is-domain"
-                    :title="`From domain ${matchedDomainForUrl(url)} (read-only)`"
-                  >{{ h.key }}</span>
-                </template>
-                <template v-if="urlHeaderKeys(url).length">
-                  <span
-                    v-for="key in urlHeaderKeys(url)"
-                    :key="`u-${key}`"
-                    class="header-chip is-url"
-                    title="Per-URL header"
-                  >{{ key }}</span>
-                </template>
-                <span
-                  v-if="!domainHeadersForUrl(url).length && !urlHeaderKeys(url).length"
-                  class="text-muted headers-none"
-                >—</span>
-              </div>
-            </td>
-            <td>
-              <div class="actions">
-                <button class="btn-icon" type="button" title="Edit" @click="openEditModal(url)">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button
-                  class="btn-icon danger"
-                  type="button"
-                  title="Delete"
-                  @click="handleDelete(url.UrlName || url.urlName)"
+      <template v-else>
+        <div class="url-filters">
+          <input
+            v-model="filterQuery"
+            type="search"
+            class="form-control url-filter-search"
+            placeholder="Search name or URL…"
+            autocomplete="off"
+            aria-label="Search name or URL"
+          >
+          <select
+            v-model="filterCategory"
+            class="form-control url-filter-select"
+            aria-label="Filter by category"
+          >
+            <option value="">All categories</option>
+            <option v-for="cat in filterCategoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <select
+            v-model="filterDomain"
+            class="form-control url-filter-select"
+            aria-label="Filter by domain"
+          >
+            <option value="">All domains</option>
+            <option v-for="d in filterDomainOptions" :key="d" :value="d">{{ d }}</option>
+          </select>
+          <button
+            v-if="filtersActive"
+            type="button"
+            class="btn btn-secondary btn-sm"
+            @click="clearFilters"
+          >
+            Clear
+          </button>
+          <span class="url-filter-count">
+            {{ filteredUrls.length }} of {{ urls.length }}
+          </span>
+        </div>
+        <div v-if="filteredUrls.length === 0" class="empty-state empty-filtered">
+          <h4>No matching URLs</h4>
+          <p>Try clearing search or filters.</p>
+        </div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th class="col-check">
+                <input
+                  type="checkbox"
+                  :checked="allVisibleSelected"
+                  :indeterminate="someVisibleSelected && !allVisibleSelected"
+                  aria-label="Select all visible URLs"
+                  @change="toggleSelectAllVisible($event.target.checked)"
                 >
-                  <i class="bi bi-trash3"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Visibility</th>
+              <th>URL</th>
+              <th>Headers</th>
+              <th style="width: 120px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="url in filteredUrls" :key="urlNameOf(url)">
+              <td class="col-check">
+                <input
+                  type="checkbox"
+                  :checked="isSelected(urlNameOf(url))"
+                  :aria-label="`Select ${urlNameOf(url)}`"
+                  @change="toggleSelect(urlNameOf(url), $event.target.checked)"
+                >
+              </td>
+              <td>
+                <strong>{{ urlNameOf(url) }}</strong>
+              </td>
+              <td>
+                <span class="cat-pill">{{ displayCategory(url) }}</span>
+              </td>
+              <td>
+                <span
+                  class="vis-pill"
+                  :class="(url.Visibility || url.visibility || 'private') === 'public' ? 'is-public' : 'is-private'"
+                >
+                  {{ url.Visibility || url.visibility || 'private' }}
+                </span>
+              </td>
+              <td>
+                <a
+                  class="link-dashboard"
+                  :href="url.Url || url.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ url.Url || url.url }}
+                </a>
+              </td>
+              <td>
+                <div class="headers-cell">
+                  <template v-if="domainHeadersForUrl(url).length">
+                    <span
+                      v-for="h in domainHeadersForUrl(url)"
+                      :key="`d-${h.key}`"
+                      class="header-chip is-domain"
+                      :title="`From domain ${matchedDomainForUrl(url)} (read-only)`"
+                    >{{ h.key }}</span>
+                  </template>
+                  <template v-if="urlHeaderKeys(url).length">
+                    <span
+                      v-for="key in urlHeaderKeys(url)"
+                      :key="`u-${key}`"
+                      class="header-chip is-url"
+                      title="Per-URL header"
+                    >{{ key }}</span>
+                  </template>
+                  <span
+                    v-if="!domainHeadersForUrl(url).length && !urlHeaderKeys(url).length"
+                    class="text-muted headers-none"
+                  >—</span>
+                </div>
+              </td>
+              <td>
+                <div class="actions">
+                  <button class="btn-icon" type="button" title="Edit" @click="openEditModal(url)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button
+                    class="btn-icon danger"
+                    type="button"
+                    title="Delete"
+                    @click="handleDelete(urlNameOf(url))"
+                  >
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
   </div>
 
@@ -374,6 +445,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useApi } from '../composables/useApi'
 import {
   headerValueInputType,
+  hostFromUrl,
   matchDomain,
   parseHeadersJson,
   SUGGESTED_HEADERS,
@@ -393,7 +465,7 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
-const { fetchUrls, addUrl, addUrls, updateUrl, deleteUrl, fetchDomainHeaders } = useApi()
+const { fetchUrls, addUrl, addUrls, updateUrl, deleteUrl, deleteUrls, fetchDomainHeaders } = useApi()
 const domainProfiles = ref([])
 
 const urls = ref([])
@@ -402,6 +474,7 @@ const addMode = ref('manual')
 const pasteText = ref('')
 const modalOpen = ref(false)
 const saving = ref(false)
+const bulkDeleting = ref(false)
 const formMessage = ref('')
 const formSuccess = ref(false)
 const actionMessage = ref('')
@@ -410,6 +483,12 @@ const nameInput = ref(null)
 const pasteInput = ref(null)
 const categoryOptions = CATEGORY_OPTIONS
 const showHeaderValues = ref(true)
+
+const filterQuery = ref('')
+const filterCategory = ref('')
+const filterDomain = ref('')
+/** @type {import('vue').Ref<Set<string>>} */
+const selectedNames = ref(new Set())
 
 const pastePreview = computed(() => parseUrlImport(pasteText.value))
 
@@ -442,6 +521,96 @@ const emptyForm = () => ({
 })
 
 const formData = ref(emptyForm())
+
+function urlNameOf(url) {
+  return url?.UrlName || url?.urlName || ''
+}
+
+function urlValueOf(url) {
+  return url?.Url || url?.url || ''
+}
+
+function hostOf(url) {
+  return hostFromUrl(urlValueOf(url)) || ''
+}
+
+const filterCategoryOptions = computed(() => {
+  const fromData = urls.value.map((u) => displayCategory(u)).filter(Boolean)
+  return [...new Set([...CATEGORY_OPTIONS, ...fromData])].sort((a, b) =>
+    a.localeCompare(b)
+  )
+})
+
+const filterDomainOptions = computed(() => {
+  const hosts = urls.value.map((u) => hostOf(u)).filter(Boolean)
+  return [...new Set(hosts)].sort((a, b) => a.localeCompare(b))
+})
+
+const filtersActive = computed(
+  () => !!(filterQuery.value.trim() || filterCategory.value || filterDomain.value)
+)
+
+const filteredUrls = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  const cat = filterCategory.value
+  const domain = filterDomain.value.toLowerCase()
+
+  return urls.value.filter((url) => {
+    if (cat && displayCategory(url) !== cat) return false
+    if (domain && hostOf(url) !== domain) return false
+    if (q) {
+      const name = urlNameOf(url).toLowerCase()
+      const href = urlValueOf(url).toLowerCase()
+      if (!name.includes(q) && !href.includes(q)) return false
+    }
+    return true
+  })
+})
+
+const selectedCount = computed(() => selectedNames.value.size)
+
+const allVisibleSelected = computed(() => {
+  const list = filteredUrls.value
+  if (list.length === 0) return false
+  return list.every((u) => selectedNames.value.has(urlNameOf(u)))
+})
+
+const someVisibleSelected = computed(() =>
+  filteredUrls.value.some((u) => selectedNames.value.has(urlNameOf(u)))
+)
+
+function isSelected(name) {
+  return selectedNames.value.has(name)
+}
+
+function toggleSelect(name, checked) {
+  if (!name) return
+  const next = new Set(selectedNames.value)
+  if (checked) next.add(name)
+  else next.delete(name)
+  selectedNames.value = next
+}
+
+function toggleSelectAllVisible(checked) {
+  const next = new Set(selectedNames.value)
+  for (const url of filteredUrls.value) {
+    const name = urlNameOf(url)
+    if (!name) continue
+    if (checked) next.add(name)
+    else next.delete(name)
+  }
+  selectedNames.value = next
+}
+
+function clearSelection() {
+  selectedNames.value = new Set()
+}
+
+function clearFilters() {
+  filterQuery.value = ''
+  filterCategory.value = ''
+  filterDomain.value = ''
+}
 
 const matchedDomain = computed(() =>
   matchDomain(
@@ -555,6 +724,8 @@ function removeHeaderRow(index) {
 async function loadUrls() {
   const data = await fetchUrls()
   urls.value = Array.isArray(data) ? data : []
+  const valid = new Set(urls.value.map((u) => urlNameOf(u)).filter(Boolean))
+  selectedNames.value = new Set([...selectedNames.value].filter((n) => valid.has(n)))
 }
 
 async function loadDomainProfiles() {
@@ -732,11 +903,43 @@ async function handleDelete(urlName) {
   if (result.success) {
     actionMessage.value = `"${urlName}" deleted.`
     actionSuccess.value = true
+    const next = new Set(selectedNames.value)
+    next.delete(urlName)
+    selectedNames.value = next
     await loadUrls()
     emit('urlUpdated')
     setTimeout(() => { actionMessage.value = '' }, 5000)
   } else {
     actionMessage.value = result.error || `Failed to delete "${urlName}".`
+    actionSuccess.value = false
+  }
+}
+
+async function handleBulkDelete() {
+  const names = [...selectedNames.value].filter(Boolean)
+  if (names.length === 0) return
+  if (!confirm(`Delete ${names.length} selected URL${names.length === 1 ? '' : 's'}?`)) return
+
+  bulkDeleting.value = true
+  actionMessage.value = ''
+  const result = await deleteUrls(names)
+  bulkDeleting.value = false
+
+  if (result.deleted.length) {
+    clearSelection()
+    await loadUrls()
+    emit('urlUpdated')
+  }
+
+  if (result.success) {
+    actionMessage.value = `Deleted ${result.deleted.length} URL${result.deleted.length === 1 ? '' : 's'}.`
+    actionSuccess.value = true
+    setTimeout(() => { actionMessage.value = '' }, 5000)
+  } else if (result.deleted.length) {
+    actionMessage.value = `Deleted ${result.deleted.length}; ${result.failed.length} failed.`
+    actionSuccess.value = false
+  } else {
+    actionMessage.value = result.failed[0]?.error || 'Failed to delete selected URLs'
     actionSuccess.value = false
   }
 }
@@ -750,6 +953,64 @@ defineExpose({ loadUrls, loadDomainProfiles })
 </script>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-danger-outline {
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+}
+
+.url-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+
+.url-filter-search {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+.url-filter-select {
+  flex: 0 1 10rem;
+  min-width: 8rem;
+}
+
+.url-filter-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.col-check {
+  width: 2.25rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.col-check input {
+  cursor: pointer;
+}
+
+.empty-filtered {
+  padding: 1.25rem 0;
+}
+
 .cat-pill,
 .vis-pill {
   font-family: var(--font-mono);

@@ -533,6 +533,27 @@ export function useApi() {
     }
   }
 
+  /**
+   * Delete many URLs sequentially (reuses deleteUrl).
+   * @param {string[]} urlNames
+   * @returns {{ success: boolean, deleted: string[], failed: { urlName: string, error?: string }[] }}
+   */
+  async function deleteUrls(urlNames) {
+    const deleted = []
+    const failed = []
+    for (const urlName of urlNames || []) {
+      if (!urlName) continue
+      const result = await deleteUrl(urlName)
+      if (result.success) deleted.push(urlName)
+      else failed.push({ urlName, error: result.error })
+    }
+    return {
+      success: failed.length === 0 && deleted.length > 0,
+      deleted,
+      failed
+    }
+  }
+
   async function fetchDomainHeaders() {
     try {
       const response = await fetch(apiUrl(getDomainHeaderReaderFunctionName()), {
@@ -610,6 +631,7 @@ export function useApi() {
     addUrls,
     updateUrl,
     deleteUrl,
+    deleteUrls,
     fetchDomainHeaders,
     saveDomainHeader,
     deleteDomainHeader
