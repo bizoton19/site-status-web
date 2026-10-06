@@ -203,9 +203,37 @@
                     <span class="cat-chip">{{ item.category }}</span>
                   </td>
                   <td>
-                    <span class="status-pill" :class="statusClass(item.status)">
-                      {{ formatStatus(item.status) }}
-                    </span>
+                    <div class="status-cell">
+                      <span class="status-pill" :class="statusClass(item.status)">
+                        {{ formatStatus(item.status) }}
+                      </span>
+                      <template v-if="needsDetails(item.status)">
+                        <Show v-if="isClerkConfigured" when="signed-in">
+                          <button
+                            type="button"
+                            class="details-link"
+                            @click="goToApp"
+                          >
+                            See details
+                          </button>
+                        </Show>
+                        <Show v-if="isClerkConfigured" when="signed-out">
+                          <SignInButton mode="redirect" force-redirect-url="/statuses">
+                            <button type="button" class="details-link">
+                              See details
+                            </button>
+                          </SignInButton>
+                        </Show>
+                        <button
+                          v-if="!isClerkConfigured"
+                          type="button"
+                          class="details-link"
+                          @click="goToApp"
+                        >
+                          See details
+                        </button>
+                      </template>
+                    </div>
                   </td>
                   <td>{{ formatChecked(item.date) }}</td>
                 </tr>
@@ -449,17 +477,32 @@ function isUp(status) {
   return s === 'OK' || s === '200' || s === 'UP'
 }
 
+function isPending(status) {
+  const s = String(status || '').trim().toLowerCase()
+  return !s || s === 'pending'
+}
+
+function isDegraded(status) {
+  return String(status || '').trim().toLowerCase() === 'degraded'
+}
+
+/** Down / Degraded only — never expose private failure text on the public page. */
+function needsDetails(status) {
+  if (isUp(status) || isPending(status)) return false
+  return true
+}
+
 function formatStatus(status) {
   if (isUp(status)) return 'Up'
-  const s = String(status || '').trim()
-  if (!s || s.toLowerCase() === 'pending') return 'Pending'
+  if (isPending(status)) return 'Pending'
+  if (isDegraded(status)) return 'Degraded'
   return 'Down'
 }
 
 function statusClass(status) {
   if (isUp(status)) return 'is-up'
-  const s = String(status || '').toLowerCase()
-  if (!s || s === 'pending') return 'is-pending'
+  if (isPending(status)) return 'is-pending'
+  if (isDegraded(status)) return 'is-degraded'
   return 'is-down'
 }
 
@@ -930,6 +973,13 @@ function goToApp() {
   border: 1px solid var(--border-color);
 }
 
+.status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
 .status-pill.is-up {
   color: var(--color-success);
   border-color: rgba(74, 222, 128, 0.45);
@@ -940,8 +990,30 @@ function goToApp() {
   border-color: rgba(239, 68, 68, 0.45);
 }
 
+.status-pill.is-degraded {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
 .status-pill.is-pending {
   color: var(--text-muted);
+}
+
+.details-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-accent);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.details-link:hover {
+  color: var(--text-main);
 }
 
 .cat-chip {
