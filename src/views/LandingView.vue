@@ -75,23 +75,35 @@
           </span>
         </div>
 
-        <div class="metric-ring" :style="{ '--uptime-deg': `${uptimePercentage * 3.6}deg` }">
+        <div
+          class="metric-ring"
+          :class="{
+            'is-all-up': uptimePercentage === 100 && totalCount > 0,
+            'is-all-down': uptimePercentage === 0 && totalCount > 0,
+            'is-empty': totalCount === 0
+          }"
+          :style="{ '--uptime-deg': `${uptimePercentage * 3.6}deg` }"
+        >
           <div class="ring-value">{{ uptimePercentage }}%</div>
           <div class="ring-label">latest OK rate</div>
         </div>
 
         <div class="home-stats">
-          <div class="home-stat success">
-            <span>Up</span>
-            <strong>{{ onlineCount }}</strong>
+          <div class="home-stat">
+            <span>Domains</span>
+            <strong>{{ domainCount }}</strong>
+          </div>
+          <div class="home-stat">
+            <span>URLs</span>
+            <strong>{{ totalCount }}</strong>
           </div>
           <div class="home-stat danger">
             <span>Down</span>
             <strong>{{ offlineCount }}</strong>
           </div>
-          <div class="home-stat">
-            <span>URLs tracked</span>
-            <strong>{{ totalCount }}</strong>
+          <div class="home-stat success">
+            <span>Up</span>
+            <strong>{{ onlineCount }}</strong>
           </div>
         </div>
 
@@ -117,9 +129,9 @@
       <div class="directory-header">
         <div>
           <p class="panel-kicker">Public directory</p>
-          <h2>Live endpoints by category</h2>
+          <h2>Live endpoints</h2>
           <p class="directory-lead">
-            Publicly shared monitors, grouped for quick scanning. Mark endpoints public from Manage.
+            Publicly shared monitors, grouped by domain. Mark endpoints public from Manage.
           </p>
         </div>
         <div class="directory-controls">
@@ -127,47 +139,58 @@
             v-model="directoryQuery"
             type="search"
             class="form-control directory-search"
-            placeholder="Search name, URL, org…"
+            placeholder="Search name, URL, domain, org…"
             aria-label="Search public endpoints"
+            @keyup.enter="onSearch"
           >
           <select
             v-model="directoryCategory"
             class="form-control directory-category"
             aria-label="Filter by category"
+            @change="onFilterChange"
           >
             <option value="">All categories</option>
             <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
           </select>
+          <button type="button" class="btn btn-secondary" @click="onSearch">Search</button>
         </div>
       </div>
 
       <p v-if="directoryLoading" class="directory-empty">Loading public endpoints…</p>
-      <p v-else-if="filteredDirectory.length === 0" class="directory-empty">
+      <p v-else-if="directoryGroups.length === 0" class="directory-empty">
         No public endpoints yet. Sign in, add a URL, and set visibility to Public.
       </p>
 
       <div v-else class="directory-groups">
         <article
-          v-for="group in groupedDirectory"
-          :key="group.category"
+          v-for="group in directoryGroups"
+          :key="group.domain"
           class="directory-group"
         >
           <header class="directory-group-header">
-            <h3>{{ group.category }}</h3>
-            <span>{{ group.items.length }}</span>
+            <h3>{{ group.domain }}</h3>
+            <span>
+              {{ group.urlCount }} URL{{ group.urlCount === 1 ? '' : 's' }}
+              · {{ group.upCount }} up
+              · {{ group.downCount }} down
+            </span>
           </header>
           <div class="directory-table-wrap">
             <table class="directory-table">
               <thead>
                 <tr>
                   <th>Endpoint</th>
+                  <th>Category</th>
                   <th>Org</th>
                   <th>Status</th>
                   <th>Last checked</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in group.items" :key="`${item.category}-${item.urlName}-${item.url}`">
+                <tr
+                  v-for="item in group.items"
+                  :key="`${item.domain}-${item.urlName}-${item.url}`"
+                >
                   <td>
                     <strong>{{ item.urlName }}</strong>
                     <a
@@ -176,6 +199,9 @@
                       target="_blank"
                       rel="noopener noreferrer"
                     >{{ item.url }}</a>
+                  </td>
+                  <td>
+                    <span class="cat-chip">{{ item.category }}</span>
                   </td>
                   <td>{{ item.orgLabel }}</td>
                   <td>
@@ -188,8 +214,42 @@
               </tbody>
             </table>
           </div>
+          <p
+            v-if="group.urlCount > group.items.length"
+            class="directory-truncated"
+          >
+            Showing {{ group.items.length }} of {{ group.urlCount }} on this domain
+            (page cap). Refine search to narrow results.
+          </p>
         </article>
       </div>
+
+      <nav
+        v-if="totalPages > 1"
+        class="directory-pagination"
+        aria-label="Domain pages"
+      >
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="directoryPage <= 1 || directoryLoading"
+          @click="goPage(directoryPage - 1)"
+        >
+          Previous
+        </button>
+        <span class="page-meta">
+          Page {{ directoryPage }} of {{ totalPages }}
+          · {{ totalDomains }} domain{{ totalDomains === 1 ? '' : 's' }}
+        </span>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="directoryPage >= totalPages || directoryLoading"
+          @click="goPage(directoryPage + 1)"
+        >
+          Next
+        </button>
+      </nav>
     </section>
 
     <section class="architecture-strip">
@@ -227,16 +287,25 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
+const DOMAINS_PER_PAGE = 10
+
 const router = useRouter()
-const { fetchStatuses, fetchPublicStatuses } = useApi()
+const { fetchPublicStatuses } = useApi()
 const showUnconfigured = computed(() => !isClerkConfigured)
-const statuses = ref([])
 const statsLoading = ref(true)
-const directory = ref([])
+const directoryGroups = ref([])
 const directoryLoading = ref(true)
 const directoryQuery = ref('')
 const directoryCategory = ref('')
+const directoryPage = ref(1)
+const totalPages = ref(1)
+const totalDomains = ref(0)
 const categoryOptions = CATEGORY_OPTIONS
+
+const domainCount = ref(0)
+const totalCount = ref(0)
+const onlineCount = ref(0)
+const offlineCount = ref(0)
 
 const capabilities = [
   {
@@ -261,72 +330,56 @@ const capabilities = [
   },
 ]
 
-const onlineCount = computed(() => statuses.value.filter((s) => isUp(s.status)).length)
-const totalCount = computed(() => statuses.value.length)
-const offlineCount = computed(() => Math.max(totalCount.value - onlineCount.value, 0))
 const uptimePercentage = computed(() => {
   if (!totalCount.value) return 0
   return Math.round((onlineCount.value / totalCount.value) * 100)
 })
 
-const filteredDirectory = computed(() => {
-  const q = directoryQuery.value.trim().toLowerCase()
-  const cat = directoryCategory.value
-  return directory.value.filter((item) => {
-    if (cat && item.category !== cat) return false
-    if (!q) return true
-    const hay = `${item.urlName} ${item.url} ${item.category} ${item.orgLabel}`.toLowerCase()
-    return hay.includes(q)
-  })
-})
-
-const groupedDirectory = computed(() => {
-  const map = new Map()
-  for (const item of filteredDirectory.value) {
-    const key = item.category || 'General'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key).push(item)
-  }
-  return [...map.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([category, items]) => ({ category, items }))
-})
+function applySummary(summary) {
+  domainCount.value = summary.domains || 0
+  totalCount.value = summary.urls || 0
+  onlineCount.value = summary.up || 0
+  offlineCount.value = summary.down || 0
+  statsLoading.value = false
+}
 
 async function loadDirectory() {
   directoryLoading.value = true
   try {
-    const rows = await fetchPublicStatuses({
+    const data = await fetchPublicStatuses({
       q: directoryQuery.value.trim() || undefined,
-      category: directoryCategory.value || undefined
+      category: directoryCategory.value || undefined,
+      page: directoryPage.value,
+      pageSize: DOMAINS_PER_PAGE
     })
-    directory.value = rows.map((row) => ({
-      urlName: row.UrlName ?? row.urlName ?? '',
-      url: row.Url ?? row.url ?? '',
-      category: row.Category ?? row.category ?? 'General',
-      status: row.Status ?? row.status ?? '',
-      date: row.Date ?? row.date ?? null,
-      orgLabel: row.OrgLabel ?? row.orgLabel ?? 'Watchtower'
-    }))
-    // Prefer public directory for the hero tally when available.
-    if (directory.value.length) {
-      statuses.value = directory.value.map((item) => ({ status: item.status }))
-      statsLoading.value = false
-    }
+    applySummary(data.summary || {})
+    directoryGroups.value = data.groups || []
+    totalPages.value = data.totalPages || 1
+    totalDomains.value = data.totalDomains || 0
+    directoryPage.value = data.page || directoryPage.value
   } finally {
     directoryLoading.value = false
   }
 }
 
-onMounted(async () => {
-  try {
-    const data = await fetchStatuses({ publicAggregate: true })
-    statuses.value = data.map((item) => ({
-      status: item.Status ?? item.status,
-    }))
-  } finally {
-    statsLoading.value = false
-  }
-  await loadDirectory()
+function onSearch() {
+  directoryPage.value = 1
+  loadDirectory()
+}
+
+function onFilterChange() {
+  directoryPage.value = 1
+  loadDirectory()
+}
+
+function goPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  directoryPage.value = page
+  loadDirectory()
+}
+
+onMounted(() => {
+  loadDirectory()
 })
 
 function isUp(status) {
@@ -546,8 +599,28 @@ function goToApp() {
   border: 1px solid var(--border-active);
   background:
     radial-gradient(circle, var(--bg-panel) 54%, transparent 55%),
-    conic-gradient(var(--text-accent) var(--uptime-deg), var(--bg-surface) 0);
-  box-shadow: inset 0 0 50px rgba(255, 51, 102, 0.1);
+    conic-gradient(
+      var(--color-success) 0deg var(--uptime-deg),
+      var(--color-danger) var(--uptime-deg) 360deg
+    );
+  box-shadow: inset 0 0 50px rgba(74, 222, 128, 0.08);
+}
+
+.metric-ring.is-all-up {
+  box-shadow: inset 0 0 56px rgba(74, 222, 128, 0.22);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.metric-ring.is-all-down {
+  box-shadow: inset 0 0 56px rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.metric-ring.is-empty {
+  background:
+    radial-gradient(circle, var(--bg-panel) 54%, transparent 55%),
+    conic-gradient(var(--bg-surface) 0deg 360deg);
+  box-shadow: none;
 }
 
 .ring-value {
@@ -567,30 +640,31 @@ function goToApp() {
 
 .home-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
 }
 
 .home-stat {
-  padding: 0.9rem;
+  padding: 0.7rem 0.55rem;
   border: 1px solid var(--border-color);
   border-radius: 14px;
   background: var(--bg-surface);
+  text-align: center;
 }
 
 .home-stat span {
   display: block;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .home-stat strong {
   display: block;
-  margin-top: 0.35rem;
-  font-size: 2rem;
+  margin-top: 0.3rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 
@@ -824,6 +898,38 @@ function goToApp() {
   color: var(--text-muted);
 }
 
+.cat-chip {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.directory-truncated {
+  margin: 0;
+  padding: 0.55rem 1rem 0.85rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.directory-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+.page-meta {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 @media (max-width: 980px) {
   .hero-shell,
   .architecture-strip {
@@ -849,7 +955,10 @@ function goToApp() {
     font-size: clamp(2.75rem, 15vw, 4.4rem);
   }
 
-  .home-stats,
+  .home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .capability-grid {
     grid-template-columns: 1fr;
   }

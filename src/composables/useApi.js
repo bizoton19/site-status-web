@@ -236,16 +236,28 @@ export function useApi() {
 
   /**
    * Public landing directory — anonymous, public endpoints only.
-   * @param {{ q?: string, category?: string }} [filters]
+   * Returns { summary, page, pageSize, totalDomains, totalPages, groups }.
+   * @param {{ q?: string, category?: string, page?: number, pageSize?: number }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
     loading.value = true
     error.value = null
 
+    const empty = {
+      summary: { domains: 0, urls: 0, up: 0, down: 0, uptimePct: 0 },
+      page: 1,
+      pageSize: 10,
+      totalDomains: 0,
+      totalPages: 1,
+      groups: []
+    }
+
     try {
       const params = {}
       if (filters.q) params.q = filters.q
       if (filters.category) params.category = filters.category
+      if (filters.page) params.page = filters.page
+      if (filters.pageSize) params.pageSize = filters.pageSize
 
       const response = await fetch(apiUrl(getPublicStatusesFunctionName(), params), {
         method: 'GET',
@@ -257,11 +269,55 @@ export function useApi() {
       }
 
       const data = await response.json()
-      return Array.isArray(data) ? data : []
+      // Legacy: plain array
+      if (Array.isArray(data)) {
+        return {
+          ...empty,
+          summary: {
+            domains: new Set(data.map((r) => r.Domain || r.domain).filter(Boolean)).size,
+            urls: data.length,
+            up: data.filter((r) => String(r.Status || r.status || '').toUpperCase() === 'OK').length,
+            down: 0,
+            uptimePct: 0
+          },
+          groups: [],
+          _legacyItems: data
+        }
+      }
+
+      const summary = data.summary || data.Summary || empty.summary
+      return {
+        summary: {
+          domains: summary.domains ?? summary.Domains ?? 0,
+          urls: summary.urls ?? summary.Urls ?? 0,
+          up: summary.up ?? summary.Up ?? 0,
+          down: summary.down ?? summary.Down ?? 0,
+          uptimePct: summary.uptimePct ?? summary.UptimePct ?? 0
+        },
+        page: data.page ?? data.Page ?? 1,
+        pageSize: data.pageSize ?? data.PageSize ?? 10,
+        totalDomains: data.totalDomains ?? data.TotalDomains ?? 0,
+        totalPages: data.totalPages ?? data.TotalPages ?? 1,
+        groups: (data.groups || data.Groups || []).map((g) => ({
+          domain: g.domain || g.Domain || 'unknown',
+          urlCount: g.urlCount ?? g.UrlCount ?? 0,
+          upCount: g.upCount ?? g.UpCount ?? 0,
+          downCount: g.downCount ?? g.DownCount ?? 0,
+          items: (g.items || g.Items || []).map((row) => ({
+            urlName: row.UrlName ?? row.urlName ?? '',
+            url: row.Url ?? row.url ?? '',
+            domain: row.Domain ?? row.domain ?? g.domain ?? g.Domain ?? '',
+            category: row.Category ?? row.category ?? 'General',
+            status: row.Status ?? row.status ?? '',
+            date: row.Date ?? row.date ?? null,
+            orgLabel: row.OrgLabel ?? row.orgLabel ?? 'Watchtower'
+          }))
+        }))
+      }
     } catch (err) {
       error.value = err.message
       console.error('Error fetching public statuses:', err)
-      return []
+      return empty
     } finally {
       loading.value = false
     }
