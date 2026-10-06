@@ -26,6 +26,7 @@
             <th>Category</th>
             <th>Visibility</th>
             <th>URL</th>
+            <th>Headers</th>
             <th style="width: 120px;">Actions</th>
           </tr>
         </thead>
@@ -54,6 +55,30 @@
               >
                 {{ url.Url || url.url }}
               </a>
+            </td>
+            <td>
+              <div class="headers-cell">
+                <template v-if="domainHeadersForUrl(url).length">
+                  <span
+                    v-for="h in domainHeadersForUrl(url)"
+                    :key="`d-${h.key}`"
+                    class="header-chip is-domain"
+                    :title="`From domain ${matchedDomainForUrl(url)} (read-only)`"
+                  >{{ h.key }}</span>
+                </template>
+                <template v-if="urlHeaderKeys(url).length">
+                  <span
+                    v-for="key in urlHeaderKeys(url)"
+                    :key="`u-${key}`"
+                    class="header-chip is-url"
+                    title="Per-URL header"
+                  >{{ key }}</span>
+                </template>
+                <span
+                  v-if="!domainHeadersForUrl(url).length && !urlHeaderKeys(url).length"
+                  class="text-muted headers-none"
+                >—</span>
+              </div>
             </td>
             <td>
               <div class="actions">
@@ -224,16 +249,38 @@
 
           <template v-if="isEditing || addMode === 'manual'">
             <div v-if="inheritedHeaders.length" class="mb-3 inherited-headers">
-              <label class="form-label">From domain ({{ matchedDomain }}) — optional defaults</label>
+              <div class="headers-label-row">
+                <label class="form-label mb-0">
+                  Domain headers
+                  <span class="readonly-badge">read-only</span>
+                </label>
+                <span class="domain-match-label">{{ matchedDomain }}</span>
+              </div>
               <p class="headers-hint">
-                Inherited if you set domain headers. Override any key below on this URL only.
+                Already applied from domain settings. Edit them under Domain headers; override a key below for this URL only.
               </p>
-              <ul class="inherited-list">
-                <li v-for="h in inheritedHeaders" :key="h.key">
-                  <code>{{ h.key }}</code>
-                  <span>{{ showHeaderValues ? h.value : '••••••••' }}</span>
-                </li>
-              </ul>
+              <div class="headers-editor inherited-editor">
+                <div
+                  v-for="h in inheritedHeaders"
+                  :key="h.key"
+                  class="header-row"
+                >
+                  <input
+                    type="text"
+                    class="form-control"
+                    :value="h.key"
+                    readonly
+                    tabindex="-1"
+                  >
+                  <input
+                    :type="showHeaderValues ? 'text' : 'password'"
+                    class="form-control"
+                    :value="h.value"
+                    readonly
+                    tabindex="-1"
+                  >
+                </div>
+              </div>
             </div>
             <div class="mb-3">
               <div class="headers-label-row">
@@ -402,6 +449,26 @@ const inheritedHeaders = computed(() => {
   const profile = domainProfiles.value.find((p) => p.domain === domain)
   return profile ? profile.headerList : []
 })
+
+function matchedDomainForUrl(url) {
+  return matchDomain(
+    url?.Url || url?.url || '',
+    domainProfiles.value.map((p) => p.domain)
+  )
+}
+
+function domainHeadersForUrl(url) {
+  const domain = matchedDomainForUrl(url)
+  if (!domain) return []
+  const profile = domainProfiles.value.find((p) => p.domain === domain)
+  return profile?.headerList?.length ? profile.headerList : []
+}
+
+function urlHeaderKeys(url) {
+  return parseHeaders(url)
+    .map((row) => String(row.key || '').trim())
+    .filter(Boolean)
+}
 
 function resolveCategory(category, categoryCustom) {
   if (category === 'Custom') {
@@ -657,6 +724,8 @@ onMounted(async () => {
   await Promise.all([loadUrls(), loadDomainProfiles()])
 })
 onUnmounted(() => lockBodyScroll(false))
+
+defineExpose({ loadUrls, loadDomainProfiles })
 </script>
 
 <style scoped>
@@ -780,30 +849,63 @@ onUnmounted(() => lockBodyScroll(false))
   color: var(--text-main);
 }
 
-.inherited-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.35rem;
+.headers-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  max-width: 16rem;
 }
 
-.inherited-list li {
-  display: grid;
-  grid-template-columns: minmax(7rem, 0.4fr) 1fr;
-  gap: 0.5rem;
-  padding: 0.4rem 0.55rem;
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-}
-
-.inherited-list code {
+.header-chip {
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.header-chip.is-domain {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.header-chip.is-url {
+  border-color: var(--text-accent, #888);
+  color: var(--text-main);
+}
+
+.headers-none {
+  font-size: 0.8rem;
+}
+
+.readonly-badge {
+  margin-left: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.12rem 0.35rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.domain-match-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.inherited-editor .form-control {
+  opacity: 0.85;
+  cursor: default;
+  background: var(--bg-surface, #0f0f0f);
 }
 
 .add-mode-tabs {

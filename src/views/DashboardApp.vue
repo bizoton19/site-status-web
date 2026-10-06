@@ -144,8 +144,8 @@
       </div>
 
       <div v-else-if="activeTab === 'urls'" class="fade-in manage-stack">
-        <DomainHeadersPanel />
-        <UrlManager @urlUpdated="refreshData" />
+        <DomainHeadersPanel @updated="onDomainHeadersUpdated" />
+        <UrlManager ref="urlManagerRef" @urlUpdated="refreshData" />
       </div>
 
       <div v-else-if="activeTab === 'charts'" class="fade-in">
@@ -202,6 +202,11 @@ const isRefreshing = ref(false)
 const isReloading = ref(false)
 const initialLoading = ref(true)
 const toasts = ref([])
+const urlManagerRef = ref(null)
+
+function onDomainHeadersUpdated() {
+  urlManagerRef.value?.loadDomainProfiles?.()
+}
 
 const pollBannerText = ref('')
 const pollBannerBusy = ref(false)
