@@ -386,8 +386,8 @@ const capabilities = [
   },
   {
     icon: 'bi-cash-stack',
-    title: 'Free up to 25 URLs',
-    copy: 'No credit card. Stay free while we grow; later it’s about $1 per extra 10 URLs — not a big SaaS ladder.',
+    title: 'Free through 1M polls',
+    copy: 'No credit card. Up to 50 URLs free through your first million polls; after that, priced per million polls — not a big SaaS ladder.',
   },
 ]
 
