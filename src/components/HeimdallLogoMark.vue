@@ -7,28 +7,65 @@
       focusable="false"
     >
       <defs>
-        <radialGradient id="heimdall-eye" cx="38%" cy="35%" r="65%">
-          <stop offset="0%" stop-color="#ff6b88" />
-          <stop offset="45%" stop-color="#ff2244" />
-          <stop offset="100%" stop-color="#b80022" />
+        <!-- Headlight beam: bright core → amber glass → deep gold edge -->
+        <radialGradient :id="lensId" cx="40%" cy="36%" r="68%">
+          <stop offset="0%" stop-color="#fff8d6" />
+          <stop offset="22%" stop-color="#ffe066" />
+          <stop offset="55%" stop-color="#f0a820" />
+          <stop offset="100%" stop-color="#8a5810" />
+        </radialGradient>
+        <!-- Soft flashlight cone outside the rim -->
+        <radialGradient :id="glowId" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffcc44" stop-opacity="0.5" />
+          <stop offset="50%" stop-color="#e8a020" stop-opacity="0.16" />
+          <stop offset="100%" stop-color="#c08010" stop-opacity="0" />
         </radialGradient>
       </defs>
 
-      <!-- Two fierce red eyes — mark only, no face -->
-      <ellipse cx="9.5" cy="16" rx="6.2" ry="5.4" fill="url(#heimdall-eye)" />
-      <ellipse cx="22.5" cy="16" rx="6.2" ry="5.4" fill="url(#heimdall-eye)" />
+      <!-- Outer beam glow (flashlight cones) -->
+      <circle cx="9.5" cy="16" r="8" :fill="`url(#${glowId})`" />
+      <circle cx="22.5" cy="16" r="8" :fill="`url(#${glowId})`" />
 
-      <!-- Dark pupils -->
-      <ellipse cx="10.1" cy="16.2" rx="2.15" ry="2.45" fill="#1a0508" />
-      <ellipse cx="23.1" cy="16.2" rx="2.15" ry="2.45" fill="#1a0508" />
+      <!-- Metallic / dark rims -->
+      <circle
+        cx="9.5"
+        cy="16"
+        r="5.55"
+        fill="#141416"
+        stroke="#5a5a64"
+        stroke-width="1.05"
+      />
+      <circle
+        cx="22.5"
+        cy="16"
+        r="5.55"
+        fill="#141416"
+        stroke="#5a5a64"
+        stroke-width="1.05"
+      />
+      <!-- Inner rim ring -->
+      <circle cx="9.5" cy="16" r="4.7" fill="none" stroke="#2a2a30" stroke-width="0.55" />
+      <circle cx="22.5" cy="16" r="4.7" fill="none" stroke="#2a2a30" stroke-width="0.55" />
 
-      <!-- Hot core -->
-      <circle cx="10.1" cy="16.2" r="0.95" fill="#ff2244" />
-      <circle cx="23.1" cy="16.2" r="0.95" fill="#ff2244" />
+      <!-- Lens glass / golden beam -->
+      <circle cx="9.5" cy="16" r="4.25" :fill="`url(#${lensId})`" />
+      <circle cx="22.5" cy="16" r="4.25" :fill="`url(#${lensId})`" />
 
-      <!-- Specular highlight -->
-      <circle cx="7.6" cy="13.6" r="1.15" fill="#fff5f5" opacity="0.9" />
-      <circle cx="20.6" cy="13.6" r="1.15" fill="#fff5f5" opacity="0.9" />
+      <!-- Hot filament core -->
+      <circle cx="9.5" cy="16" r="1.2" fill="#fff6c8" opacity="0.95" />
+      <circle cx="22.5" cy="16" r="1.2" fill="#fff6c8" opacity="0.95" />
+
+      <!-- Specular highlight on glass -->
+      <circle cx="7.85" cy="14.15" r="0.8" fill="#ffffff" opacity="0.7" />
+      <circle cx="20.85" cy="14.15" r="0.8" fill="#ffffff" opacity="0.7" />
     </svg>
   </span>
 </template>
+
+<script setup>
+import { useId } from 'vue'
+
+const uid = useId().replace(/:/g, '')
+const lensId = `heimdall-lens-${uid}`
+const glowId = `heimdall-glow-${uid}`
+</script>

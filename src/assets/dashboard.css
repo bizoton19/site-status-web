@@ -156,11 +156,11 @@ body::before {
   flex-shrink: 0;
   color: var(--text-accent);
   border-radius: var(--radius-sm);
-  /* Soft dual glow: accent pink + muted success green — sharp at nav size */
+  /* Soft golden headlight beam glow — readable at nav size */
   filter:
-    drop-shadow(0 0 2px rgba(255, 51, 102, 0.55))
-    drop-shadow(0 0 5px rgba(255, 51, 102, 0.28))
-    drop-shadow(0 0 8px rgba(74, 222, 128, 0.16));
+    drop-shadow(0 0 2px rgba(255, 196, 64, 0.6))
+    drop-shadow(0 0 5px rgba(240, 160, 32, 0.38))
+    drop-shadow(0 0 9px rgba(255, 180, 40, 0.2));
 }
 
 .logo-mark-svg {
