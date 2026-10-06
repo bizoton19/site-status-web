@@ -2,17 +2,17 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-logo" aria-hidden="true">
-        <HeimdallLogoMark />
+        <Outpost13LogoMark />
       </div>
       <p class="site-footer-copy">
-        © {{ year }} Heimdall. All rights reserved.
+        © {{ year }} Outpost13. All rights reserved.
       </p>
     </div>
   </footer>
 </template>
 
 <script setup>
-import HeimdallLogoMark from './HeimdallLogoMark.vue'
+import Outpost13LogoMark from './Outpost13LogoMark.vue'
 
 const year = new Date().getFullYear()
 </script>

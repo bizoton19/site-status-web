@@ -291,7 +291,7 @@
                 </label>
               </div>
               <p class="headers-hint">
-                Optional. Only for this endpoint (e.g. API key). Leave blank to use domain defaults or the Heimdall User-Agent.
+                Optional. Only for this endpoint (e.g. API key). Leave blank to use domain defaults or the Outpost13 User-Agent.
               </p>
               <div class="headers-editor">
                 <div
@@ -303,7 +303,7 @@
                     v-model="row.key"
                     type="text"
                     class="form-control"
-                    list="heimdall-header-suggestions"
+                    list="outpost13-header-suggestions"
                     placeholder="e.g. Authorization"
                     autocomplete="off"
                     spellcheck="false"
@@ -340,7 +340,7 @@
                   </button>
                 </div>
               </div>
-              <datalist id="heimdall-header-suggestions">
+              <datalist id="outpost13-header-suggestions">
                 <option v-for="hint in SUGGESTED_HEADERS" :key="hint.name" :value="hint.name" />
               </datalist>
             </div>

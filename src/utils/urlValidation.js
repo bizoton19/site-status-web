@@ -1,5 +1,5 @@
 /**
- * URL validation for Heimdall monitoring.
+ * URL validation for Outpost13 monitoring.
  * Client-side validation with detailed error messages.
  */
 

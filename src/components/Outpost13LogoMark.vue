@@ -144,8 +144,8 @@
 import { useId } from 'vue'
 
 const uid = useId().replace(/:/g, '')
-const beamId = `heimdall-beam-${uid}`
-const lensId = `heimdall-lens-${uid}`
-const bodyId = `heimdall-body-${uid}`
-const bezelId = `heimdall-bezel-${uid}`
+const beamId = `outpost13-beam-${uid}`
+const lensId = `outpost13-lens-${uid}`
+const bodyId = `outpost13-body-${uid}`
+const bezelId = `outpost13-bezel-${uid}`
 </script>

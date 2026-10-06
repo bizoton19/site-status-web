@@ -4,8 +4,8 @@
 
     <header class="home-nav">
       <button type="button" class="brand-button" @click="goHome">
-        <HeimdallLogoMark />
-        <span>Heimdall</span>
+        <Outpost13LogoMark />
+        <span>Outpost13</span>
       </button>
       <div class="home-nav-actions">
         <ThemeToggle />
@@ -43,7 +43,7 @@ import { Show, SignInButton } from '@clerk/vue'
 import { useRouter } from 'vue-router'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import HeimdallLogoMark from '../components/HeimdallLogoMark.vue'
+import Outpost13LogoMark from '../components/Outpost13LogoMark.vue'
 import PublicDirectoryPanel from '../components/PublicDirectoryPanel.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 
