@@ -16,7 +16,7 @@ export function normalizeDomain(domainOrUrl) {
 
 /** Common header names for autocomplete / quick-add (names only — never values). */
 export const SUGGESTED_HEADERS = [
-  { name: 'User-Agent', placeholder: 'e.g. BilomaxBot/1.0 or WatchtowerMonitor/1.0' },
+  { name: 'User-Agent', placeholder: 'e.g. BilomaxBot/1.0 or HeimdallMonitor/1.0' },
   { name: 'Authorization', placeholder: 'e.g. Bearer …' },
   { name: 'X-Api-Key', placeholder: 'API key' },
   { name: 'Accept', placeholder: 'e.g. application/json' },

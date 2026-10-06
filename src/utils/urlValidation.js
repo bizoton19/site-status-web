@@ -1,5 +1,5 @@
 /**
- * URL validation for Watchtower monitoring.
+ * URL validation for Heimdall monitoring.
  * Client-side validation with detailed error messages.
  */
 

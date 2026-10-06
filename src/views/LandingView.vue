@@ -4,8 +4,8 @@
 
     <header class="home-nav">
       <button type="button" class="brand-button" @click="goHome">
-        <WatchtowerLogoMark />
-        <span>Watchtower</span>
+        <HeimdallLogoMark />
+        <span>Heimdall</span>
       </button>
       <div class="home-nav-actions">
         <ThemeToggle />
@@ -30,7 +30,7 @@
         </div>
         <h1>Scale uptime monitoring without scaling operations.</h1>
         <p class="hero-lead">
-          Watchtower gives developers and teams a tenant-aware status console for URLs,
+          Heimdall gives developers and teams a tenant-aware status console for URLs,
           alerts, history, bulk onboarding, and WAF-friendly monitoring.
         </p>
 
@@ -64,7 +64,7 @@
         </div>
       </div>
 
-      <aside class="telemetry-panel" aria-label="Current Watchtower public rollup">
+      <aside class="telemetry-panel" aria-label="Current Heimdall public rollup">
         <div class="panel-header">
           <div>
             <p class="panel-kicker">Current tally</p>
@@ -113,7 +113,7 @@
       </aside>
     </section>
 
-    <section class="capability-grid" aria-label="Watchtower capabilities">
+    <section class="capability-grid" aria-label="Heimdall capabilities">
       <article
         v-for="capability in capabilities"
         :key="capability.title"
@@ -365,7 +365,7 @@ import { useRouter } from 'vue-router'
 import { Show, SignInButton, SignUpButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 import ThemeToggle from '../components/ThemeToggle.vue'
-import WatchtowerLogoMark from '../components/WatchtowerLogoMark.vue'
+import HeimdallLogoMark from '../components/HeimdallLogoMark.vue'
 import { useApi } from '../composables/useApi.js'
 
 const CATEGORY_OPTIONS = [

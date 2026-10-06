@@ -1,7 +1,7 @@
 {
   "name": "site-status-dashboard",
   "version": "2.0.0",
-  "description": "Professional Site Status Dashboard - Vue 3 + Vite",
+  "description": "Heimdall — URL status monitoring console (Vue 3 + Vite)",
   "private": true,
   "type": "module",
   "scripts": {
