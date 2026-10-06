@@ -3,7 +3,7 @@
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-brand">
         <div class="sidebar-brand-row">
-          <div class="logo-mark" aria-hidden="true"></div>
+          <WatchtowerLogoMark />
           <h1>Watchtower</h1>
         </div>
         <div class="sidebar-tagline">Your org monitoring</div>
@@ -188,6 +188,7 @@ import HistoryChart from '../components/HistoryChart.vue'
 import HistoryLog from '../components/HistoryLog.vue'
 import UserMenu from '../components/UserMenu.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import WatchtowerLogoMark from '../components/WatchtowerLogoMark.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -4,7 +4,7 @@
 
     <header class="home-nav">
       <button type="button" class="brand-button" @click="goHome">
-        <span class="logo-mark" aria-hidden="true"></span>
+        <WatchtowerLogoMark />
         <span>Watchtower</span>
       </button>
       <div class="home-nav-actions">
@@ -365,6 +365,7 @@ import { useRouter } from 'vue-router'
 import { Show, SignInButton, SignUpButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import WatchtowerLogoMark from '../components/WatchtowerLogoMark.vue'
 import { useApi } from '../composables/useApi.js'
 
 const CATEGORY_OPTIONS = [
