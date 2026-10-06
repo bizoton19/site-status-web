@@ -189,6 +189,7 @@ import HistoryLog from '../components/HistoryLog.vue'
 import UserMenu from '../components/UserMenu.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import Outpost13LogoMark from '../components/Outpost13LogoMark.vue'
+import { isSuccessStatus as isSuccessRow } from '../utils/probeStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -222,6 +223,7 @@ const showAuthUnconfiguredBanner = computed(() => route.query.auth === 'unconfig
 const filterLabel = computed(() => {
   if (statusesFilter.value === 'online') return 'Online only'
   if (statusesFilter.value === 'offline') return 'Failed only'
+  if (statusesFilter.value === 'blocked') return 'Blocked only'
   return 'All'
 })
 
@@ -302,6 +304,8 @@ const headerSubtitle = computed(() => {
     filterNote = ' · Showing online only'
   } else if (activeTab.value === 'statuses' && statusesFilter.value === 'offline') {
     filterNote = ' · Showing failed only'
+  } else if (activeTab.value === 'statuses' && statusesFilter.value === 'blocked') {
+    filterNote = ' · Showing blocked only'
   }
   return `${online} of ${total} org endpoints OK (latest poll)${filterNote} · UI refresh ${new Date().toLocaleString()}`
 })
@@ -318,13 +322,6 @@ function toastIconClass(type) {
   if (type === 'error') return 'bi bi-exclamation-circle'
   if (type === 'info') return 'bi bi-hourglass-split'
   return 'bi bi-check-circle'
-}
-
-function isSuccessRow(item) {
-  const code = Number(item.StatusCode ?? item.statusCode)
-  if (code === 200 || code === 201) return true
-  const s = String(item.Status ?? item.status ?? '').trim().toUpperCase()
-  return s === 'OK' || s === 'CREATED' || s === '200' || s === '201'
 }
 
 async function loadStatuses() {

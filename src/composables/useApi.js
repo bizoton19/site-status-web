@@ -267,8 +267,8 @@ export function useApi() {
     loading.value = true
     error.value = null
 
-    const empty = {
-      summary: { domains: 0, urls: 0, up: 0, down: 0, uptimePct: 0 },
+const empty = {
+      summary: { domains: 0, urls: 0, up: 0, down: 0, blocked: 0, uptimePct: 0 },
       page: 1,
       pageSize: 10,
       totalOwners: 0,
@@ -303,6 +303,7 @@ export function useApi() {
             urls: data.length,
             up: data.filter((r) => String(r.Status || r.status || '').toUpperCase() === 'OK').length,
             down: 0,
+            blocked: 0,
             uptimePct: 0
           },
           groups: [],
@@ -317,6 +318,7 @@ export function useApi() {
           urls: summary.urls ?? summary.Urls ?? 0,
           up: summary.up ?? summary.Up ?? 0,
           down: summary.down ?? summary.Down ?? 0,
+          blocked: summary.blocked ?? summary.Blocked ?? 0,
           uptimePct: summary.uptimePct ?? summary.UptimePct ?? 0
         },
         page: data.page ?? data.Page ?? 1,

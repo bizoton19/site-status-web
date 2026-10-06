@@ -30,6 +30,14 @@
         >
           Failed
         </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :class="{ 'is-active': filter === 'blocked' }"
+          @click="filter = 'blocked'"
+        >
+          Blocked
+        </button>
       </div>
     </div>
     <div class="dashboard-card-body" style="padding: 0;">
@@ -55,8 +63,11 @@
             <tbody>
               <tr v-for="(status, idx) in filteredStatuses" :key="`${status.rowKey}-${idx}-${status.date}`">
                 <td>
-                  <span class="status-badge" :class="status.status === 'OK' ? 'online' : 'offline'">
-                    {{ status.status === 'OK' ? 'OK' : 'Failed' }}
+                  <span
+                    class="status-badge"
+                    :class="isSuccessStatus(status) ? 'online' : 'offline'"
+                  >
+                    {{ formatStatusLabel(status) }}
                   </span>
                 </td>
                 <td>
@@ -71,7 +82,7 @@
                   {{ formatDate(status.date) }}
                 </td>
                 <td>
-                  <span v-if="status.status === 'OK'" class="text-ok">Normal</span>
+                  <span v-if="isSuccessStatus(status)" class="text-ok">Normal</span>
                   <span v-else class="text-err">{{ status.description || 'Error' }}</span>
                 </td>
               </tr>
@@ -97,6 +108,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '../composables/useApi'
 import { toDisplayHistoryRows } from '../utils/statusHistory'
+import {
+  formatStatusLabel,
+  isBlockedStatus,
+  isDownStatus,
+  isSuccessStatus
+} from '../utils/probeStatus'
 
 const props = defineProps({
   statuses: {
@@ -149,10 +166,13 @@ const logSourceNote = computed(() => {
 const filteredStatuses = computed(() => {
   const list = sourceRows.value
   if (filter.value === 'online') {
-    return list.filter(s => s.status === 'OK')
+    return list.filter((s) => isSuccessStatus(s))
+  }
+  if (filter.value === 'blocked') {
+    return list.filter((s) => isBlockedStatus(s))
   }
   if (filter.value === 'offline') {
-    return list.filter(s => s.status !== 'OK')
+    return list.filter((s) => isDownStatus(s))
   }
   return list
 })

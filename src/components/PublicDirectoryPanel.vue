@@ -159,6 +159,11 @@ import { useRouter } from 'vue-router'
 import { Show, SignInButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 import { useApi } from '../composables/useApi.js'
+import {
+  formatPublicStatusLabel,
+  isSuccessStatus,
+  publicStatusClass
+} from '../utils/probeStatus.js'
 
 const CATEGORY_OPTIONS = [
   'Landing',
@@ -256,17 +261,12 @@ function goToApp() {
 }
 
 function isUp(status) {
-  const s = String(status || '').toUpperCase()
-  return s === 'OK' || s === '200' || s === 'UP'
+  return isSuccessStatus(status)
 }
 
 function isPending(status) {
   const s = String(status || '').trim().toLowerCase()
   return !s || s === 'pending'
-}
-
-function isDegraded(status) {
-  return String(status || '').trim().toLowerCase() === 'degraded'
 }
 
 function needsDetails(status) {
@@ -275,17 +275,11 @@ function needsDetails(status) {
 }
 
 function formatStatus(status) {
-  if (isUp(status)) return 'Up'
-  if (isPending(status)) return 'Pending'
-  if (isDegraded(status)) return 'Degraded'
-  return 'Down'
+  return formatPublicStatusLabel(status)
 }
 
 function statusClass(status) {
-  if (isUp(status)) return 'is-up'
-  if (isPending(status)) return 'is-pending'
-  if (isDegraded(status)) return 'is-degraded'
-  return 'is-down'
+  return publicStatusClass(status)
 }
 
 function formatChecked(date) {

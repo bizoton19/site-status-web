@@ -40,6 +40,25 @@
 
     <button
       type="button"
+      class="stat-card stat-card-clickable danger-top"
+      @click="emit('navigate-statuses', 'blocked')"
+    >
+      <div class="stat-card-header">
+        <div>
+          <div class="stat-card-title">Blocked</div>
+          <div class="stat-card-value">{{ blockedCount }}</div>
+          <div class="stat-card-trend" :class="{ down: blockedCount > 0 }">
+            {{ blockedCount > 0 ? 'WAF / auth · Open list' : 'None' }}
+          </div>
+        </div>
+        <div class="stat-card-icon" aria-hidden="true">
+          <i class="bi bi-shield-lock"></i>
+        </div>
+      </div>
+    </button>
+
+    <button
+      type="button"
       class="stat-card stat-card-clickable accent-top"
       @click="emit('navigate-statuses', 'all')"
     >
@@ -72,6 +91,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { isBlockedStatus, isDownStatus, isSuccessStatus } from '../utils/probeStatus'
 
 const props = defineProps({
   statuses: {
@@ -82,19 +102,16 @@ const props = defineProps({
 
 const emit = defineEmits(['navigate-statuses'])
 
-function isSuccessStatus(s) {
-  const code = Number(s?.statusCode)
-  if (code === 200 || code === 201) return true
-  const status = String(s?.status ?? '').trim().toUpperCase()
-  return status === 'OK' || status === 'CREATED' || status === '200' || status === '201'
-}
-
 const onlineCount = computed(() =>
   props.statuses.filter((s) => isSuccessStatus(s)).length
 )
 
 const offlineCount = computed(() =>
-  props.statuses.filter((s) => !isSuccessStatus(s)).length
+  props.statuses.filter((s) => isDownStatus(s)).length
+)
+
+const blockedCount = computed(() =>
+  props.statuses.filter((s) => isBlockedStatus(s)).length
 )
 
 const totalCount = computed(() => props.statuses.length)

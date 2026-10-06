@@ -38,6 +38,7 @@
         <h4>No data</h4>
         <p v-if="searchTrim && scopedCount > 0">No endpoints match “{{ searchTrim }}”. Try another term or clear the search.</p>
         <p v-else-if="resultFilter === 'offline'">No failed endpoints in the latest poll.</p>
+        <p v-else-if="resultFilter === 'blocked'">No blocked endpoints in the latest poll.</p>
         <p v-else-if="resultFilter === 'online'">No online endpoints match this view.</p>
         <p v-else>Configure monitored URLs or run a poll to populate results.</p>
       </div>
@@ -66,6 +67,13 @@
               aria-label="OK"
             >
               <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            </span>
+            <span
+              v-else-if="isBlockedStatus(status)"
+              class="status-badge offline"
+              title="Blocked — click for details"
+            >
+              Blocked
             </span>
             <span
               v-else
@@ -159,6 +167,12 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import {
+  formatStatusLabel,
+  isBlockedStatus,
+  isDownStatus,
+  isSuccessStatus
+} from '../utils/probeStatus'
 
 const props = defineProps({
   statuses: {
@@ -172,7 +186,7 @@ const props = defineProps({
   resultFilter: {
     type: String,
     default: 'all',
-    validator: (v) => ['all', 'online', 'offline'].includes(v)
+    validator: (v) => ['all', 'online', 'offline', 'blocked'].includes(v)
   },
   /** Show search box (off for small overview preview). */
   showSearch: {
@@ -186,21 +200,15 @@ const detailStatus = ref(null)
 
 const searchTrim = computed(() => searchQuery.value.trim())
 
-/** Success = OK / Created / HTTP 200 / 201 */
-function isSuccessStatus(status) {
-  if (!status) return false
-  const code = Number(status.statusCode)
-  if (code === 200 || code === 201) return true
-  const s = String(status.status ?? '').trim().toUpperCase()
-  return s === 'OK' || s === 'CREATED' || s === '200' || s === '201'
-}
-
 const filtered = computed(() => {
   if (props.resultFilter === 'online') {
     return props.statuses.filter((s) => isSuccessStatus(s))
   }
+  if (props.resultFilter === 'blocked') {
+    return props.statuses.filter((s) => isBlockedStatus(s))
+  }
   if (props.resultFilter === 'offline') {
-    return props.statuses.filter((s) => !isSuccessStatus(s))
+    return props.statuses.filter((s) => isDownStatus(s))
   }
   return props.statuses
 })
@@ -242,6 +250,10 @@ const detailResponse = computed(() => parseJsonSafe(detailStatus.value?.lastResp
 const detailStatusLabel = computed(() => {
   const s = detailStatus.value
   if (!s) return ''
+  if (isBlockedStatus(s)) {
+    const code = s.statusCode != null && s.statusCode !== '' ? String(s.statusCode) : ''
+    return code ? `Blocked (${code})` : formatStatusLabel(s)
+  }
   if (s.statusCode != null && s.statusCode !== '') return String(s.statusCode)
   return String(s.status || 'Failed')
 })

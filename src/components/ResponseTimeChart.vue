@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-card">
     <div class="dashboard-card-header">
-      <h3 class="dashboard-card-title">Latest poll: online vs offline</h3>
+      <h3 class="dashboard-card-title">Latest poll: online / offline / blocked</h3>
     </div>
     <div class="dashboard-card-body">
       <div
@@ -32,6 +32,7 @@ import {
 } from 'chart.js'
 import { useTheme } from '../composables/useTheme.js'
 import { getChartPalette, chartTooltipPlugin } from '../utils/chartTheme.js'
+import { isBlockedStatus, isDownStatus, isSuccessStatus } from '../utils/probeStatus'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
@@ -44,20 +45,21 @@ const props = defineProps({
 
 const { theme } = useTheme()
 
-const online = computed(() => props.statuses.filter((s) => s.status === 'OK').length)
-const offline = computed(() => props.statuses.filter((s) => s.status !== 'OK').length)
+const online = computed(() => props.statuses.filter((s) => isSuccessStatus(s)).length)
+const offline = computed(() => props.statuses.filter((s) => isDownStatus(s)).length)
+const blocked = computed(() => props.statuses.filter((s) => isBlockedStatus(s)).length)
 const total = computed(() => props.statuses.length)
 
 const chartData = computed(() => {
   const palette = getChartPalette()
   return {
-    labels: ['Online', 'Offline'],
+    labels: ['Online', 'Offline', 'Blocked'],
     datasets: [
       {
         label: 'Endpoints',
-        data: [online.value, offline.value],
-        backgroundColor: [palette.success, palette.danger],
-        borderColor: [palette.successBorder, palette.dangerBorder],
+        data: [online.value, offline.value, blocked.value],
+        backgroundColor: [palette.success, palette.danger, palette.danger],
+        borderColor: [palette.successBorder, palette.dangerBorder, palette.dangerBorder],
         borderWidth: 1,
         borderRadius: 4,
       },

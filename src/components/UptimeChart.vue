@@ -17,6 +17,7 @@ import { Doughnut } from 'vue-chartjs'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { useTheme } from '../composables/useTheme.js'
 import { getChartPalette, chartTooltipPlugin, chartLegendLabels } from '../utils/chartTheme.js'
+import { isBlockedStatus, isDownStatus, isSuccessStatus } from '../utils/probeStatus'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -31,16 +32,17 @@ const { theme } = useTheme()
 
 const chartData = computed(() => {
   const palette = getChartPalette()
-  const online = props.statuses.filter((s) => s.status === 'OK').length
-  const offline = props.statuses.filter((s) => s.status !== 'OK').length
+  const online = props.statuses.filter((s) => isSuccessStatus(s)).length
+  const offline = props.statuses.filter((s) => isDownStatus(s)).length
+  const blocked = props.statuses.filter((s) => isBlockedStatus(s)).length
 
   return {
-    labels: ['Online', 'Offline'],
+    labels: ['Online', 'Offline', 'Blocked'],
     datasets: [
       {
-        data: [online || 1, offline],
-        backgroundColor: [palette.success, palette.danger],
-        borderColor: [palette.successBorder, palette.dangerBorder],
+        data: [online || (offline + blocked === 0 ? 1 : 0), offline, blocked],
+        backgroundColor: [palette.success, palette.danger, palette.danger],
+        borderColor: [palette.successBorder, palette.dangerBorder, palette.dangerBorder],
         borderWidth: 2,
         hoverOffset: 4,
       },

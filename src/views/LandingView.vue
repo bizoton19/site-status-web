@@ -101,6 +101,10 @@
             <span>Down</span>
             <strong>{{ offlineCount }}</strong>
           </div>
+          <div class="home-stat danger">
+            <span>Blocked</span>
+            <strong>{{ blockedCount }}</strong>
+          </div>
           <div class="home-stat success">
             <span>Up</span>
             <strong>{{ onlineCount }}</strong>
@@ -228,6 +232,7 @@ const domainCount = ref(0)
 const totalCount = ref(0)
 const onlineCount = ref(0)
 const offlineCount = ref(0)
+const blockedCount = ref(0)
 
 const capabilities = [
   {
@@ -262,6 +267,7 @@ function applySummary(summary) {
   totalCount.value = summary.urls || 0
   onlineCount.value = summary.up || 0
   offlineCount.value = summary.down || 0
+  blockedCount.value = summary.blocked || 0
   statsLoading.value = false
 }
 
