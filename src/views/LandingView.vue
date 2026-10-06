@@ -139,7 +139,7 @@
             v-model="directoryQuery"
             type="search"
             class="form-control directory-search"
-            placeholder="Search name, URL, domain…"
+            placeholder="Search URL, domain…"
             aria-label="Search public endpoints"
             @keyup.enter="onSearch"
           >
@@ -179,6 +179,7 @@
               <thead>
                 <tr>
                   <th>Endpoint</th>
+                  <th>Domain</th>
                   <th>Category</th>
                   <th>Status</th>
                   <th>Last checked</th>
@@ -187,10 +188,9 @@
               <tbody>
                 <tr
                   v-for="item in group.items"
-                  :key="`${item.domain}-${item.urlName}-${item.url}`"
+                  :key="`${item.domain}-${item.url}`"
                 >
                   <td>
-                    <strong>{{ item.urlName }}</strong>
                     <a
                       class="directory-url"
                       :href="item.url"
@@ -198,6 +198,7 @@
                       rel="noopener noreferrer"
                     >{{ item.url }}</a>
                   </td>
+                  <td>{{ item.domain || '—' }}</td>
                   <td>
                     <span class="cat-chip">{{ item.category }}</span>
                   </td>
@@ -910,15 +911,10 @@ function goToApp() {
   border-bottom: 0;
 }
 
-.directory-table strong {
-  display: block;
-  margin-bottom: 0.2rem;
-}
-
 .directory-url {
   display: block;
-  color: var(--text-muted);
-  font-size: 0.8rem;
+  color: var(--text-main);
+  font-size: 0.88rem;
   word-break: break-all;
 }
 

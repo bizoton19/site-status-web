@@ -300,20 +300,23 @@ export function useApi() {
         totalOwners: data.totalOwners ?? data.TotalOwners
           ?? data.totalDomains ?? data.TotalDomains ?? 0,
         totalPages: data.totalPages ?? data.TotalPages ?? 1,
-        groups: (data.groups || data.Groups || []).map((g) => ({
-          // Opaque key for Vue :key only — never display as owner label
-          groupKey: g.groupKey || g.GroupKey || g.domain || g.Domain || 'group',
+        groups: (data.groups || data.Groups || []).map((g, index) => ({
+          // Opaque key for Vue :key only — never display as owner/org label
+          groupKey: g.groupKey || g.GroupKey || `group-${index}`,
           urlCount: g.urlCount ?? g.UrlCount ?? 0,
           upCount: g.upCount ?? g.UpCount ?? 0,
           downCount: g.downCount ?? g.DownCount ?? 0,
-          items: (g.items || g.Items || []).map((row) => ({
-            urlName: row.UrlName ?? row.urlName ?? '',
-            url: row.Url ?? row.url ?? '',
-            domain: row.Domain ?? row.domain ?? '',
-            category: row.Category ?? row.category ?? 'General',
-            status: row.Status ?? row.status ?? '',
-            date: row.Date ?? row.date ?? null
-          }))
+          items: (g.items || g.Items || []).map((row) => {
+            const domainRaw = String(row.Domain ?? row.domain ?? '').trim()
+            const domain = /^unknown$/i.test(domainRaw) ? '' : domainRaw
+            return {
+              url: row.Url ?? row.url ?? '',
+              domain,
+              category: row.Category ?? row.category ?? 'General',
+              status: row.Status ?? row.status ?? '',
+              date: row.Date ?? row.date ?? null
+            }
+          })
         }))
       }
     } catch (err) {
