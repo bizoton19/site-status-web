@@ -273,7 +273,7 @@
                     tabindex="-1"
                   >
                   <input
-                    :type="showHeaderValues ? 'text' : 'password'"
+                    :type="headerValueInputType(h.key, !showHeaderValues)"
                     class="form-control"
                     :value="h.value"
                     readonly
@@ -287,7 +287,7 @@
                 <label class="form-label mb-0">Per-URL headers (optional)</label>
                 <label class="headers-show">
                   <input v-model="showHeaderValues" type="checkbox">
-                  Show values
+                  Show secrets
                 </label>
               </div>
               <p class="headers-hint">
@@ -310,7 +310,7 @@
                   >
                   <input
                     v-model="row.value"
-                    :type="showHeaderValues ? 'text' : 'password'"
+                    :type="headerValueInputType(row.key, !showHeaderValues)"
                     class="form-control"
                     :placeholder="suggestionForHeader(row.key)"
                     autocomplete="off"
@@ -371,7 +371,13 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useApi } from '../composables/useApi'
-import { matchDomain, parseHeadersJson, SUGGESTED_HEADERS, suggestionForHeader } from '../utils/domainHeaders'
+import {
+  headerValueInputType,
+  matchDomain,
+  parseHeadersJson,
+  SUGGESTED_HEADERS,
+  suggestionForHeader
+} from '../utils/domainHeaders'
 import { generateUrlName, parsePasteInput, validateUrl } from '../utils/urlValidation'
 
 const emit = defineEmits(['urlUpdated'])
@@ -587,7 +593,7 @@ async function openAddModal() {
 async function openEditModal(url) {
   const split = splitCategory(url.Category || url.category)
   isEditing.value = true
-  showHeaderValues.value = false
+  showHeaderValues.value = false // hides Authorization / API keys only — User-Agent stays visible
   formData.value = {
     urlName: url.UrlName || url.urlName || '',
     url: url.Url || url.url || '',

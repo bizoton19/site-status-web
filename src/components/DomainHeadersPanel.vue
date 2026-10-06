@@ -111,11 +111,12 @@
               <label class="form-label mb-0">Headers</label>
               <label class="headers-show">
                 <input v-model="showValues" type="checkbox">
-                Show values
+                Show secrets
               </label>
             </div>
             <p class="headers-hint">
               Example: User-Agent → BilomaxBot/1.0 when a host expects a custom agent.
+              Only Authorization / API keys are masked.
             </p>
             <div class="headers-editor">
               <div v-for="(h, i) in form.headers" :key="i" class="header-row">
@@ -129,7 +130,7 @@
                 >
                 <input
                   v-model="h.value"
-                  :type="showValues ? 'text' : 'password'"
+                  :type="headerValueInputType(h.key, !showValues)"
                   class="form-control"
                   :placeholder="suggestionForHeader(h.key)"
                   autocomplete="off"
@@ -175,7 +176,13 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useApi } from '../composables/useApi'
-import { normalizeDomain, parseHeadersJson, SUGGESTED_HEADERS, suggestionForHeader } from '../utils/domainHeaders'
+import {
+  headerValueInputType,
+  normalizeDomain,
+  parseHeadersJson,
+  SUGGESTED_HEADERS,
+  suggestionForHeader
+} from '../utils/domainHeaders'
 
 const emit = defineEmits(['updated'])
 const { fetchDomainHeaders, saveDomainHeader, deleteDomainHeader } = useApi()

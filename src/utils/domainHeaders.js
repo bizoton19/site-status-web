@@ -30,6 +30,19 @@ export function suggestionForHeader(name) {
   return hit?.placeholder || 'Value'
 }
 
+/** Headers whose values should be concealable (secrets). User-Agent / Accept stay visible. */
+const SENSITIVE_HEADER_RE =
+  /^(authorization|proxy-authorization|cookie|set-cookie|x-api-key|api-key|x-auth-token|x-access-token|x-csrf-token|x-amz-security-token)$/i
+
+export function isSensitiveHeader(name) {
+  return SENSITIVE_HEADER_RE.test(String(name || '').trim())
+}
+
+/** Input type for a header value — only secrets use password when hideSecrets is true. */
+export function headerValueInputType(name, hideSecrets = false) {
+  return hideSecrets && isSensitiveHeader(name) ? 'password' : 'text'
+}
+
 export function hostFromUrl(url) {
   if (!url) return null
   try {
