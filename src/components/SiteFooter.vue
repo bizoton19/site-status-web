@@ -2,7 +2,7 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-logo" aria-hidden="true">
-        <Outpost13LogoMark :size="84" :show-wordmark="true" />
+        <Outpost13LogoMark :size="84" />
       </div>
       <p class="site-footer-copy">
         © {{ year }} Outpost13. All rights reserved.
@@ -40,8 +40,8 @@ const year = new Date().getFullYear()
 
 .site-footer-logo :deep(.logo-mark) {
   filter:
-    drop-shadow(0 0 4px rgba(94, 234, 212, 0.28))
-    drop-shadow(0 0 10px rgba(212, 175, 55, 0.22));
+    drop-shadow(0 0 4px rgba(34, 197, 94, 0.28))
+    drop-shadow(0 0 10px rgba(34, 197, 94, 0.16));
 }
 
 .site-footer-copy {

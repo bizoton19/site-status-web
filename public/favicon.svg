@@ -1,31 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <clipPath id="clip">
-    <circle cx="32" cy="32" r="26"/>
-  </clipPath>
+  <circle cx="32" cy="32" r="30.5" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+  <circle cx="32" cy="32" r="27.4" fill="none" stroke="#22c55e" stroke-width="1.1"/>
 
-  <circle cx="32" cy="32" r="30.5" fill="none" stroke="#d4af37" stroke-width="2.4"/>
-  <circle cx="32" cy="32" r="27.4" fill="none" stroke="#8a96a8" stroke-width="1.5"/>
-  <circle cx="32" cy="32" r="26" fill="#0a0e16"/>
+  <path d="M 8 46 Q 32 36 56 46" fill="none" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round"/>
 
-  <g clip-path="url(#clip)">
-    <ellipse cx="32" cy="55" rx="30" ry="16" fill="#1a5560"/>
-    <path d="M 4 46 Q 32 38 60 46" fill="none" stroke="#5eead4" stroke-width="2" stroke-linecap="round"/>
+  <g fill="none" stroke="#22c55e" stroke-linecap="round" stroke-width="1.15">
+    <path d="M 20 28 A 12.5 12.5 0 0 1 44 28"/>
+    <path d="M 16.5 24.5 A 17 17 0 0 1 47.5 24.5"/>
+    <path d="M 13.5 20.5 A 21.5 21.5 0 0 1 50.5 20.5"/>
+  </g>
 
-    <g fill="none" stroke="#5eead4" stroke-linecap="round" stroke-width="1.8">
-      <path d="M 20 28 A 12.5 12.5 0 0 1 44 28"/>
-      <path d="M 16.5 24.5 A 17 17 0 0 1 47.5 24.5" opacity="0.75"/>
-      <path d="M 13.5 20.5 A 21.5 21.5 0 0 1 50.5 20.5" opacity="0.5"/>
-    </g>
-
-    <g transform="translate(32 35)" fill="#d8dee8" stroke="none">
-      <rect x="-14" y="-1.4" width="8" height="2.8" rx="0.4"/>
-      <rect x="6" y="-1.4" width="8" height="2.8" rx="0.4"/>
-      <rect x="-6" y="-0.7" width="12" height="1.4" rx="0.3"/>
-      <circle cx="0" cy="0" r="3.2"/>
-      <circle cx="0" cy="0" r="1.6" fill="#0a0e16"/>
-      <circle cx="0" cy="0" r="0.7" fill="#d4af37"/>
-      <rect x="-0.55" y="-8.2" width="1.1" height="5.2" rx="0.3"/>
-      <circle cx="0" cy="-8.6" r="1.15" fill="#d4af37"/>
-    </g>
+  <g transform="translate(32 35)" fill="none" stroke="#22c55e" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="-14" y="-1.4" width="8" height="2.8" rx="0.4"/>
+    <rect x="6" y="-1.4" width="8" height="2.8" rx="0.4"/>
+    <line x1="-6" y1="0" x2="6" y2="0"/>
+    <circle cx="0" cy="0" r="3.2"/>
+    <circle cx="0" cy="0" r="1.4"/>
+    <line x1="0" y1="-3.2" x2="0" y2="-8.2"/>
+    <circle cx="0" cy="-8.6" r="1.15"/>
   </g>
 </svg>
