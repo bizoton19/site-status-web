@@ -205,8 +205,12 @@ const initialLoading = ref(true)
 const toasts = ref([])
 const urlManagerRef = ref(null)
 
-function onDomainHeadersUpdated() {
+function onDomainHeadersUpdated(detail) {
   urlManagerRef.value?.loadDomainProfiles?.()
+  if (detail?.monitoredUrl) {
+    urlManagerRef.value?.loadUrls?.()
+    showToast(detail.toast || `Domain saved · also monitoring ${detail.monitoredUrl}`, 'success', 6000)
+  }
 }
 
 const pollBannerText = ref('')

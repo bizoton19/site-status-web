@@ -175,17 +175,19 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useApi } from '../composables/useApi'
+import { DEFAULT_MONITOR_USER_AGENT, useApi } from '../composables/useApi'
 import {
   headerValueInputType,
+  hostFromUrl,
   normalizeDomain,
   parseHeadersJson,
   SUGGESTED_HEADERS,
   suggestionForHeader
 } from '../utils/domainHeaders'
+import { generateUrlName, validateUrl } from '../utils/urlValidation'
 
 const emit = defineEmits(['updated'])
-const { fetchDomainHeaders, saveDomainHeader, deleteDomainHeader } = useApi()
+const { fetchDomainHeaders, saveDomainHeader, deleteDomainHeader, fetchUrls, addUrl } = useApi()
 
 const rows = ref([])
 const message = ref('')
@@ -255,12 +257,65 @@ function close() {
   modalOpen.value = false
 }
 
+/** True when an existing monitored URL already covers https://{domain}. */
+function hasHttpsUrlForHost(urlList, domain) {
+  const host = String(domain || '').toLowerCase()
+  if (!host) return false
+  return (urlList || []).some((row) => {
+    const raw = row?.Url || row?.url || ''
+    const rowHost = hostFromUrl(raw)
+    if (!rowHost || rowHost !== host) return false
+    try {
+      return new URL(raw.trim()).protocol === 'https:'
+    } catch {
+      return false
+    }
+  })
+}
+
+/**
+ * After a domain profile is saved, also monitor https://{domain} when missing.
+ * Skips when a matching HTTPS URL already exists (edit must not duplicate).
+ */
+async function ensureMonitorUrlForDomain(domain) {
+  const check = validateUrl(`https://${domain}`)
+  if (!check.valid || !check.url) {
+    return { added: false, url: null, error: check.error }
+  }
+
+  const existing = await fetchUrls()
+  if (hasHttpsUrlForHost(existing, domain)) {
+    return { added: false, url: check.url, alreadyExists: true }
+  }
+
+  const result = await addUrl({
+    urlName: generateUrlName(check.url),
+    url: check.url,
+    category: 'Landing',
+    visibility: 'private',
+    headers: [{ key: 'User-Agent', value: DEFAULT_MONITOR_USER_AGENT }]
+  })
+
+  if (result.success) {
+    return { added: true, url: check.url }
+  }
+
+  // Upsert / race: ignore conflict if the URL is present after the attempt
+  const after = await fetchUrls()
+  if (hasHttpsUrlForHost(after, domain)) {
+    return { added: false, url: check.url, alreadyExists: true }
+  }
+
+  return { added: false, url: check.url, error: result.error }
+}
+
 async function save() {
   const domain = normalizeDomain(form.value.domain)
   if (!domain) {
     formError.value = 'Enter a domain (e.g. bilomax.com)'
     return
   }
+  const editing = isEditing.value
   saving.value = true
   formError.value = ''
   const result = await saveDomainHeader(
@@ -269,18 +324,33 @@ async function save() {
       label: form.value.label,
       headers: form.value.headers
     },
-    { isEdit: isEditing.value }
+    { isEdit: editing }
   )
-  saving.value = false
   if (!result.success) {
+    saving.value = false
     formError.value = result.error || 'Save failed'
     return
   }
+
+  // Auto-add monitor URL when none exists for this host (create, or edit backfill)
+  const monitor = await ensureMonitorUrlForDomain(domain)
+  saving.value = false
   modalOpen.value = false
-  message.value = `Domain headers saved for ${domain}.`
+
+  if (monitor.added && monitor.url) {
+    message.value = `Domain saved · also monitoring ${monitor.url}`
+  } else {
+    message.value = `Domain headers saved for ${domain}.`
+  }
   messageOk.value = true
   await load()
-  emit('updated')
+  emit('updated', {
+    domain,
+    monitoredUrl: monitor.added ? monitor.url : null,
+    toast: monitor.added && monitor.url
+      ? `Domain saved · also monitoring ${monitor.url}`
+      : null
+  })
   setTimeout(() => { message.value = '' }, 4000)
 }
 

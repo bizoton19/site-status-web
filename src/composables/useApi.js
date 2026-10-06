@@ -187,7 +187,7 @@ async function authHeaders(extraHeaders = {}) {
  * Default poller User-Agent. Keep in sync with Functions CustomHeaders.DefaultUserAgent
  * (WAF allowlist docs use this exact string).
  */
-export const DEFAULT_MONITOR_USER_AGENT = 'WatchtowerMonitor/1.0'
+export const DEFAULT_MONITOR_USER_AGENT = 'Outpost13Monitor/1.0'
 
 function hasUserAgentHeader(headers) {
   return Object.keys(headers || {}).some((k) => k.toLowerCase() === 'user-agent')
