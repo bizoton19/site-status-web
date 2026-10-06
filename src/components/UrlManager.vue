@@ -183,7 +183,7 @@
 
           <template v-else>
             <div class="mb-3">
-              <label class="form-label" for="url-paste">URLs (one per line)</label>
+              <label class="form-label" for="url-paste">URLs (one per line or CSV)</label>
               <textarea
                 id="url-paste"
                 ref="pasteInput"
@@ -192,11 +192,12 @@
                 rows="10"
                 spellcheck="false"
                 autocomplete="off"
-                placeholder="https://example.com/health&#10;API Health | https://api.example.com/status&#10;docs, https://docs.example.com"
+                placeholder="name,url,category&#10;calendly,https://calendly.com/,TechSMB&#10;API Health | https://api.example.com/status&#10;https://example.com/health"
               />
               <p class="headers-hint">
-                One HTTPS URL per line. Optional name: <code>name | url</code>, <code>name, url</code>, or tab-separated.
-                Blank lines and <code>#</code> comments are ignored.
+                Paste a plain list or CSV. CSV columns <code>name,url,category</code> (header optional).
+                Also: one HTTPS URL per line, <code>name | url</code>, or tab-separated.
+                Per-row category overrides the picker below when present. Blank lines and <code>#</code> comments are ignored.
               </p>
               <p v-if="pastePreview.rows.length || pastePreview.errors.length" class="paste-preview">
                 <span v-if="pastePreview.rows.length" class="paste-ok">
@@ -378,7 +379,7 @@ import {
   SUGGESTED_HEADERS,
   suggestionForHeader
 } from '../utils/domainHeaders'
-import { generateUrlName, parsePasteInput, validateUrl } from '../utils/urlValidation'
+import { generateUrlName, parseUrlImport, validateUrl } from '../utils/urlValidation'
 
 const emit = defineEmits(['urlUpdated'])
 
@@ -410,7 +411,7 @@ const pasteInput = ref(null)
 const categoryOptions = CATEGORY_OPTIONS
 const showHeaderValues = ref(true)
 
-const pastePreview = computed(() => parsePasteInput(pasteText.value))
+const pastePreview = computed(() => parseUrlImport(pasteText.value))
 
 const saveDisabled = computed(() => {
   if (saving.value) return true
@@ -616,13 +617,6 @@ function closeModal() {
 }
 
 async function handleSave() {
-  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
-    formMessage.value = 'Enter a custom category, or pick a preset'
-    formSuccess.value = false
-    return
-  }
-
-  const category = resolveCategory(formData.value.category, formData.value.categoryCustom)
   const visibility = formData.value.visibility === 'public' ? 'public' : 'private'
 
   if (!isEditing.value && addMode.value === 'paste') {
@@ -633,13 +627,26 @@ async function handleSave() {
       return
     }
 
+    const needsDefaultCategory = rows.some((row) => !String(row.category || '').trim())
+    if (
+      needsDefaultCategory &&
+      formData.value.category === 'Custom' &&
+      !formData.value.categoryCustom?.trim()
+    ) {
+      formMessage.value = 'Enter a custom category, or pick a preset'
+      formSuccess.value = false
+      return
+    }
+
+    const defaultCategory = resolveCategory(formData.value.category, formData.value.categoryCustom)
+
     saving.value = true
     formMessage.value = ''
 
     const payloads = rows.map((row) => ({
       urlName: row.urlName,
       url: row.url,
-      category,
+      category: String(row.category || '').trim() || defaultCategory,
       visibility,
       headers: []
     }))
@@ -662,6 +669,14 @@ async function handleSave() {
     saving.value = false
     return
   }
+
+  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
+    formMessage.value = 'Enter a custom category, or pick a preset'
+    formSuccess.value = false
+    return
+  }
+
+  const category = resolveCategory(formData.value.category, formData.value.categoryCustom)
 
   const urlCheck = validateUrl(formData.value.url)
   if (!urlCheck.valid) {

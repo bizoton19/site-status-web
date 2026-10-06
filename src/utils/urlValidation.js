@@ -137,6 +137,90 @@ export function validateUrls(inputs) {
 }
 
 /**
+ * Split a simple CSV line (unquoted fields; commas inside URLs are not supported).
+ * @param {string} line
+ * @returns {string[]}
+ */
+function splitCsvFields(line) {
+  return String(line || '').split(',').map((c) => c.trim())
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+function looksLikeHttpsUrl(value) {
+  return /^https:\/\//i.test(String(value || '').trim())
+}
+
+/**
+ * True when a line looks like a CSV header that declares a url column.
+ * @param {string} line
+ * @returns {boolean}
+ */
+function isCsvHeaderLine(line) {
+  const cols = splitCsvFields(line).map((c) => c.toLowerCase())
+  if (!cols.includes('url') || cols.length < 2) return false
+  // Header must not itself be a data row with a live URL
+  return !cols.some(looksLikeHttpsUrl)
+}
+
+/**
+ * True when a line looks like name,https://...,Category (3+ fields, one HTTPS URL).
+ * @param {string} line
+ * @returns {boolean}
+ */
+function looksLikeCsvDataRow(line) {
+  const cols = splitCsvFields(line)
+  if (cols.length < 3) return false
+  return cols.some(looksLikeHttpsUrl)
+}
+
+/**
+ * Content lines only (trim; skip blanks and # comments). Preserves original line numbers.
+ * @param {string} text
+ * @returns {{ line: string, lineNumber: number }[]}
+ */
+function getContentLines(text) {
+  return String(text || '')
+    .split(/[\r\n]+/)
+    .map((raw, index) => ({ line: raw.trim(), lineNumber: index + 1 }))
+    .filter(({ line }) => line && !line.startsWith('#'))
+}
+
+/**
+ * Build a validated import row from CSV field cells.
+ * @param {string[]} cols
+ * @param {{ nameIndex: number, urlIndex: number, categoryIndex: number }} indexes
+ * @param {number} lineNumber
+ * @returns {{ row?: { urlName: string, url: string, category?: string }, error?: string }}
+ */
+function rowFromCsvCols(cols, indexes, lineNumber) {
+  const { nameIndex, urlIndex, categoryIndex } = indexes
+  const url = (urlIndex >= 0 ? cols[urlIndex] : '') || ''
+  const name = nameIndex >= 0 ? (cols[nameIndex] || '') : ''
+  const category = categoryIndex >= 0 ? (cols[categoryIndex] || '').trim() : ''
+
+  if (!url) {
+    return { error: `Line ${lineNumber}: Missing URL` }
+  }
+
+  const validation = validateUrl(url)
+  if (!validation.valid) {
+    return { error: `Line ${lineNumber}: ${validation.error || 'Invalid URL'}` }
+  }
+
+  const row = {
+    urlName: name || generateUrlName(validation.url),
+    url: validation.url
+  }
+  if (category) {
+    row.category = category
+  }
+  return { row }
+}
+
+/**
  * Parse paste input into URL rows.
  * Supported lines:
  *   https://example.com/health
@@ -144,8 +228,9 @@ export function validateUrls(inputs) {
  *   name, https://example.com/health
  *   name\thttps://example.com/health
  * Skips blank lines and # comments.
+ * For `name,url,category` CSV (header or headerless), use parseUrlImport instead.
  * @param {string} text
- * @returns {{ rows: { urlName: string, url: string }[], errors: string[] }}
+ * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
  */
 export function parsePasteInput(text) {
   const rows = []
@@ -158,19 +243,42 @@ export function parsePasteInput(text) {
 
     let urlName = ''
     let urlPart = line
+    let category = ''
 
     if (line.includes('|')) {
       const [left, ...rest] = line.split('|')
       urlName = left.trim()
       urlPart = rest.join('|').trim()
     } else if (line.includes('\t')) {
-      const [left, ...rest] = line.split('\t')
-      urlName = left.trim()
-      urlPart = rest.join('\t').trim()
+      const parts = line.split('\t').map((p) => p.trim())
+      if (parts.length >= 3 && parts.some(looksLikeHttpsUrl)) {
+        const urlIndex = parts.findIndex(looksLikeHttpsUrl)
+        urlName = parts[0] && !looksLikeHttpsUrl(parts[0]) ? parts[0] : ''
+        urlPart = parts[urlIndex] || ''
+        const afterUrl = parts.slice(urlIndex + 1).filter(Boolean)
+        category = afterUrl[0] || ''
+        if (!urlName && parts[0] !== urlPart) {
+          urlName = parts[0] || ''
+        }
+      } else {
+        const [left, ...rest] = parts
+        urlName = left
+        urlPart = rest.join('\t').trim()
+      }
     } else if (line.includes(',') && !line.startsWith('http')) {
-      const comma = line.indexOf(',')
-      urlName = line.slice(0, comma).trim()
-      urlPart = line.slice(comma + 1).trim()
+      const cols = splitCsvFields(line)
+      // Avoid gluing category onto URL when 3+ CSV fields are present
+      if (cols.length >= 3 && cols.some(looksLikeHttpsUrl)) {
+        const urlIndex = cols.findIndex(looksLikeHttpsUrl)
+        const nameIndex = urlIndex === 0 ? -1 : 0
+        urlName = nameIndex >= 0 ? cols[nameIndex] : ''
+        urlPart = cols[urlIndex] || ''
+        category = (cols[urlIndex + 1] || '').trim()
+      } else {
+        const comma = line.indexOf(',')
+        urlName = line.slice(0, comma).trim()
+        urlPart = line.slice(comma + 1).trim()
+      }
     }
 
     // Line that is only a URL (possibly with spaces around)
@@ -184,10 +292,14 @@ export function parsePasteInput(text) {
       return
     }
 
-    rows.push({
+    const row = {
       urlName: urlName || generateUrlName(validation.url),
       url: validation.url
-    })
+    }
+    if (category) {
+      row.category = category
+    }
+    rows.push(row)
   })
 
   return { rows, errors }
@@ -214,50 +326,89 @@ export function generateUrlName(url) {
 
 /**
  * Parse CSV content for URL import.
- * Expected format: name,url (header row required)
+ * Columns: name, url, category (category optional).
+ * Header row with a "url" column is detected automatically, or pass { hasHeader: false }
+ * to treat rows as name,url,category (URL column auto-detected when needed).
  * @param {string} csvContent - Raw CSV text
- * @returns {{ rows: object[], errors: string[] }}
+ * @param {{ hasHeader?: boolean }} [options]
+ * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
  */
-export function parseCsvUrls(csvContent) {
+export function parseCsvUrls(csvContent, options = {}) {
   const errors = []
   const rows = []
-  
-  const lines = csvContent.split(/[\r\n]+/).filter(l => l.trim())
-  if (lines.length === 0) {
+  const content = getContentLines(csvContent)
+
+  if (content.length === 0) {
     return { rows: [], errors: ['CSV is empty'] }
   }
-  
-  // Parse header
-  const header = lines[0].toLowerCase().split(',').map(h => h.trim())
-  const urlIndex = header.indexOf('url')
-  const nameIndex = header.indexOf('name')
-  
-  if (urlIndex === -1) {
-    return { rows: [], errors: ['CSV must have a "url" column'] }
+
+  let hasHeader = options.hasHeader
+  if (hasHeader === undefined) {
+    hasHeader = isCsvHeaderLine(content[0].line)
   }
-  
-  // Parse data rows
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim())
-    const url = cols[urlIndex] || ''
-    const name = nameIndex !== -1 ? cols[nameIndex] : ''
-    
-    if (!url) {
-      errors.push(`Row ${i + 1}: Missing URL`)
+
+  let nameIndex = 0
+  let urlIndex = 1
+  let categoryIndex = 2
+  let dataStart = 0
+
+  if (hasHeader) {
+    const header = splitCsvFields(content[0].line).map((h) => h.toLowerCase())
+    urlIndex = header.indexOf('url')
+    nameIndex = header.indexOf('name')
+    categoryIndex = header.indexOf('category')
+    if (urlIndex === -1) {
+      return { rows: [], errors: ['CSV must have a "url" column'] }
+    }
+    dataStart = 1
+  } else {
+    // Headerless: prefer name,url,category; otherwise find the HTTPS column
+    const sample = splitCsvFields(content[0].line)
+    const detectedUrl = sample.findIndex(looksLikeHttpsUrl)
+    if (detectedUrl >= 0) {
+      urlIndex = detectedUrl
+      nameIndex = detectedUrl === 0 ? -1 : 0
+      categoryIndex = detectedUrl + 1 < sample.length ? detectedUrl + 1 : -1
+    }
+  }
+
+  for (let i = dataStart; i < content.length; i++) {
+    const { line, lineNumber } = content[i]
+    const cols = splitCsvFields(line)
+    const result = rowFromCsvCols(cols, { nameIndex, urlIndex, categoryIndex }, lineNumber)
+    if (result.error) {
+      errors.push(result.error)
       continue
     }
-    
-    const validation = validateUrl(url)
-    if (!validation.valid) {
-      errors.push(`Row ${i + 1}: ${validation.error}`)
-      continue
-    }
-    
-    rows.push({
-      urlName: name || generateUrlName(url),
-      url: validation.url
-    })
+    rows.push(result.row)
   }
-  
+
   return { rows, errors }
+}
+
+/**
+ * Smart import parser for Paste list / CSV paste.
+ * - CSV header with a `url` column → CSV parser (name, url, category)
+ * - Headerless rows like `name,https://...,Category` → CSV without header
+ * - Otherwise one-URL-per-line / `name | url` paste behavior
+ * Never leaves a category suffix on the URL string.
+ * @param {string} text
+ * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
+ */
+export function parseUrlImport(text) {
+  const content = getContentLines(text)
+  if (content.length === 0) {
+    return { rows: [], errors: [] }
+  }
+
+  if (isCsvHeaderLine(content[0].line)) {
+    return parseCsvUrls(text, { hasHeader: true })
+  }
+
+  const csvLikeCount = content.filter(({ line }) => looksLikeCsvDataRow(line)).length
+  if (csvLikeCount > 0 && csvLikeCount >= Math.ceil(content.length * 0.5)) {
+    return parseCsvUrls(text, { hasHeader: false })
+  }
+
+  return parsePasteInput(text)
 }
