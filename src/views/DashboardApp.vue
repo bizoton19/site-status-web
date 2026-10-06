@@ -3,7 +3,7 @@
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-brand">
         <div class="sidebar-brand-row">
-          <Outpost13LogoMark />
+          <Outpost13LogoMark :size="30" />
           <h1>Outpost13</h1>
         </div>
         <div class="sidebar-tagline">Your org monitoring</div>

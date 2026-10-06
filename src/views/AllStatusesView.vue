@@ -4,7 +4,7 @@
 
     <header class="home-nav">
       <button type="button" class="brand-button" @click="goHome">
-        <Outpost13LogoMark />
+        <Outpost13LogoMark :size="30" />
         <span>Outpost13</span>
       </button>
       <div class="home-nav-actions">

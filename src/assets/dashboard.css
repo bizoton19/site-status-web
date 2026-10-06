@@ -154,13 +154,12 @@ body::before {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--text-accent);
-  border-radius: var(--radius-sm);
-  /* Soft golden flashlight beam glow — readable at nav size */
+  border-radius: 50%;
+  /* Soft cyan/gold surveillance glow — readable at nav size */
   filter:
-    drop-shadow(0 0 2px rgba(255, 196, 64, 0.6))
-    drop-shadow(0 0 5px rgba(240, 160, 32, 0.38))
-    drop-shadow(0 0 9px rgba(255, 180, 40, 0.2));
+    drop-shadow(0 0 2px rgba(94, 234, 212, 0.45))
+    drop-shadow(0 0 5px rgba(212, 175, 55, 0.32))
+    drop-shadow(0 0 9px rgba(94, 234, 212, 0.16));
 }
 
 .logo-mark-svg {
