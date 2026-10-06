@@ -343,60 +343,53 @@ export function useApi() {
     }
   }
 
-  async function addUrl(urlData) {
+  async function persistUrls(method, urlDataList) {
     loading.value = true
     error.value = null
 
     try {
+      const payload = (Array.isArray(urlDataList) ? urlDataList : [urlDataList]).map(buildUrlPayload)
       const response = await fetch(apiUrl(getUrlPersisterFunctionName()), {
-        method: 'POST',
+        method,
         credentials: 'omit',
         headers: await authHeaders({
           'Content-Type': 'application/json'
         }),
-        body: JSON.stringify([buildUrlPayload(urlData)])
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        let detail = `HTTP error! status: ${response.status}`
+        try {
+          const body = await response.json()
+          if (body?.error) detail = body.error
+        } catch {
+          // ignore
+        }
+        throw new Error(detail)
       }
 
-      return { success: true }
+      const saved = await response.json().catch(() => [])
+      return { success: true, saved: Array.isArray(saved) ? saved : [] }
     } catch (err) {
       error.value = err.message
-      console.error('Error adding URL:', err)
+      console.error(`Error ${method} URLs:`, err)
       return { success: false, error: err.message }
     } finally {
       loading.value = false
     }
   }
 
+  async function addUrl(urlData) {
+    return persistUrls('POST', urlData)
+  }
+
+  async function addUrls(urlDataList) {
+    return persistUrls('POST', urlDataList)
+  }
+
   async function updateUrl(urlData) {
-    loading.value = true
-    error.value = null
-
-    try {
-      const response = await fetch(apiUrl(getUrlPersisterFunctionName()), {
-        method: 'PUT',
-        credentials: 'omit',
-        headers: await authHeaders({
-          'Content-Type': 'application/json'
-        }),
-        body: JSON.stringify([buildUrlPayload(urlData)])
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return { success: true }
-    } catch (err) {
-      error.value = err.message
-      console.error('Error updating URL:', err)
-      return { success: false, error: err.message }
-    } finally {
-      loading.value = false
-    }
+    return persistUrls('PUT', urlData)
   }
 
   /**
@@ -552,6 +545,7 @@ export function useApi() {
     submitPollRequest,
     fetchUrls,
     addUrl,
+    addUrls,
     updateUrl,
     deleteUrl,
     fetchDomainHeaders,

@@ -137,15 +137,60 @@ export function validateUrls(inputs) {
 }
 
 /**
- * Parse paste input (one URL per line).
- * @param {string} text - Multi-line text
- * @returns {string[]} - Array of non-empty lines
+ * Parse paste input into URL rows.
+ * Supported lines:
+ *   https://example.com/health
+ *   name | https://example.com/health
+ *   name, https://example.com/health
+ *   name\thttps://example.com/health
+ * Skips blank lines and # comments.
+ * @param {string} text
+ * @returns {{ rows: { urlName: string, url: string }[], errors: string[] }}
  */
 export function parsePasteInput(text) {
-  return (text || '')
-    .split(/[\r\n]+/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
+  const rows = []
+  const errors = []
+  const lines = (text || '').split(/[\r\n]+/)
+
+  lines.forEach((raw, index) => {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) return
+
+    let urlName = ''
+    let urlPart = line
+
+    if (line.includes('|')) {
+      const [left, ...rest] = line.split('|')
+      urlName = left.trim()
+      urlPart = rest.join('|').trim()
+    } else if (line.includes('\t')) {
+      const [left, ...rest] = line.split('\t')
+      urlName = left.trim()
+      urlPart = rest.join('\t').trim()
+    } else if (line.includes(',') && !line.startsWith('http')) {
+      const comma = line.indexOf(',')
+      urlName = line.slice(0, comma).trim()
+      urlPart = line.slice(comma + 1).trim()
+    }
+
+    // Line that is only a URL (possibly with spaces around)
+    if (!urlPart && /^https?:\/\//i.test(line)) {
+      urlPart = line
+    }
+
+    const validation = validateUrl(urlPart)
+    if (!validation.valid) {
+      errors.push(`Line ${index + 1}: ${validation.error || 'Invalid URL'} (${line.slice(0, 60)})`)
+      return
+    }
+
+    rows.push({
+      urlName: urlName || generateUrlName(validation.url),
+      url: validation.url
+    })
+  })
+
+  return { rows, errors }
 }
 
 /**

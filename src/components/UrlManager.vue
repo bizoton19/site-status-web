@@ -91,7 +91,12 @@
         aria-hidden="true"
         @click="closeModal"
       />
-      <div class="url-modal-dialog" @click.stop tabindex="-1">
+      <div
+        class="url-modal-dialog"
+        :class="{ 'url-modal-dialog-wide': !isEditing && addMode === 'paste' }"
+        @click.stop
+        tabindex="-1"
+      >
         <div class="url-modal-header">
           <h5 id="url-modal-title" class="modal-title">
             {{ isEditing ? 'Edit URL' : 'Add URL' }}
@@ -99,32 +104,89 @@
           <button type="button" class="btn-close" aria-label="Close" @click="closeModal" />
         </div>
         <form class="url-modal-body" @submit.prevent="handleSave">
-          <div class="mb-3">
-            <label class="form-label" for="url-name">Site / endpoint name</label>
-            <input
-              id="url-name"
-              ref="nameInput"
-              v-model="formData.urlName"
-              type="text"
-              class="form-control"
-              :readonly="isEditing"
-              placeholder="e.g., API Health"
-              autocomplete="off"
-              tabindex="0"
+          <div v-if="!isEditing" class="add-mode-tabs mb-3" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              class="add-mode-tab"
+              :class="{ active: addMode === 'manual' }"
+              :aria-selected="addMode === 'manual'"
+              @click="addMode = 'manual'"
             >
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="url-value">URL</label>
-            <input
-              id="url-value"
-              v-model="formData.url"
-              type="url"
-              class="form-control"
-              placeholder="https://example.com/health"
-              autocomplete="off"
-              tabindex="0"
+              Manual
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="add-mode-tab"
+              :class="{ active: addMode === 'paste' }"
+              :aria-selected="addMode === 'paste'"
+              @click="addMode = 'paste'"
             >
+              Paste list
+            </button>
           </div>
+
+          <template v-if="isEditing || addMode === 'manual'">
+            <div class="mb-3">
+              <label class="form-label" for="url-name">Site / endpoint name</label>
+              <input
+                id="url-name"
+                ref="nameInput"
+                v-model="formData.urlName"
+                type="text"
+                class="form-control"
+                :readonly="isEditing"
+                placeholder="e.g., API Health (auto from URL if blank)"
+                autocomplete="off"
+                tabindex="0"
+              >
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="url-value">URL</label>
+              <input
+                id="url-value"
+                v-model="formData.url"
+                type="url"
+                class="form-control"
+                placeholder="https://example.com/health"
+                autocomplete="off"
+                tabindex="0"
+              >
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="mb-3">
+              <label class="form-label" for="url-paste">URLs (one per line)</label>
+              <textarea
+                id="url-paste"
+                ref="pasteInput"
+                v-model="pasteText"
+                class="form-control paste-textarea"
+                rows="10"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="https://example.com/health&#10;API Health | https://api.example.com/status&#10;docs, https://docs.example.com"
+              />
+              <p class="headers-hint">
+                One HTTPS URL per line. Optional name: <code>name | url</code>, <code>name, url</code>, or tab-separated.
+                Blank lines and <code>#</code> comments are ignored.
+              </p>
+              <p v-if="pastePreview.rows.length || pastePreview.errors.length" class="paste-preview">
+                <span v-if="pastePreview.rows.length" class="paste-ok">
+                  {{ pastePreview.rows.length }} ready
+                </span>
+                <span v-if="pastePreview.errors.length" class="paste-bad">
+                  {{ pastePreview.errors.length }} invalid
+                </span>
+              </p>
+              <ul v-if="pastePreview.errors.length" class="paste-errors">
+                <li v-for="(err, i) in pastePreview.errors.slice(0, 8)" :key="i">{{ err }}</li>
+              </ul>
+            </div>
+          </template>
+
           <div class="mb-3">
             <label class="form-label" for="url-category">Category</label>
             <select id="url-category" v-model="formData.category" class="form-control">
@@ -159,80 +221,84 @@
               </label>
             </div>
           </div>
-          <div v-if="inheritedHeaders.length" class="mb-3 inherited-headers">
-            <label class="form-label">From domain ({{ matchedDomain }}) — optional defaults</label>
-            <p class="headers-hint">
-              Inherited if you set domain headers. Override any key below on this URL only.
-            </p>
-            <ul class="inherited-list">
-              <li v-for="h in inheritedHeaders" :key="h.key">
-                <code>{{ h.key }}</code>
-                <span>{{ showHeaderValues ? h.value : '••••••••' }}</span>
-              </li>
-            </ul>
-          </div>
-          <div class="mb-3">
-            <div class="headers-label-row">
-              <label class="form-label mb-0">Per-URL headers (optional)</label>
-              <label class="headers-show">
-                <input v-model="showHeaderValues" type="checkbox">
-                Show values
-              </label>
+
+          <template v-if="isEditing || addMode === 'manual'">
+            <div v-if="inheritedHeaders.length" class="mb-3 inherited-headers">
+              <label class="form-label">From domain ({{ matchedDomain }}) — optional defaults</label>
+              <p class="headers-hint">
+                Inherited if you set domain headers. Override any key below on this URL only.
+              </p>
+              <ul class="inherited-list">
+                <li v-for="h in inheritedHeaders" :key="h.key">
+                  <code>{{ h.key }}</code>
+                  <span>{{ showHeaderValues ? h.value : '••••••••' }}</span>
+                </li>
+              </ul>
             </div>
-            <p class="headers-hint">
-              Optional. Only for this endpoint (e.g. API key). Leave blank to use domain defaults or the Watchtower User-Agent.
-            </p>
-            <div class="headers-editor">
-              <div
-                v-for="(row, index) in formData.headers"
-                :key="index"
-                class="header-row"
-              >
-                <input
-                  v-model="row.key"
-                  type="text"
-                  class="form-control"
-                  list="watchtower-header-suggestions"
-                  placeholder="e.g. Authorization"
-                  autocomplete="off"
-                  spellcheck="false"
-                >
-                <input
-                  v-model="row.value"
-                  :type="showHeaderValues ? 'text' : 'password'"
-                  class="form-control"
-                  :placeholder="suggestionForHeader(row.key)"
-                  autocomplete="off"
-                  spellcheck="false"
-                >
-                <button
-                  type="button"
-                  class="btn-icon danger"
-                  title="Remove header"
-                  @click="removeHeaderRow(index)"
-                >
-                  <i class="bi bi-x-lg"></i>
-                </button>
+            <div class="mb-3">
+              <div class="headers-label-row">
+                <label class="form-label mb-0">Per-URL headers (optional)</label>
+                <label class="headers-show">
+                  <input v-model="showHeaderValues" type="checkbox">
+                  Show values
+                </label>
               </div>
-              <div class="header-suggest-row">
-                <button
-                  v-for="hint in unusedSuggestions(formData.headers)"
-                  :key="hint.name"
-                  type="button"
-                  class="header-suggest-chip"
-                  @click="addSuggestedHeader(formData.headers, hint.name)"
+              <p class="headers-hint">
+                Optional. Only for this endpoint (e.g. API key). Leave blank to use domain defaults or the Watchtower User-Agent.
+              </p>
+              <div class="headers-editor">
+                <div
+                  v-for="(row, index) in formData.headers"
+                  :key="index"
+                  class="header-row"
                 >
-                  + {{ hint.name }}
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm" @click="addHeaderRow">
-                  + Custom
-                </button>
+                  <input
+                    v-model="row.key"
+                    type="text"
+                    class="form-control"
+                    list="watchtower-header-suggestions"
+                    placeholder="e.g. Authorization"
+                    autocomplete="off"
+                    spellcheck="false"
+                  >
+                  <input
+                    v-model="row.value"
+                    :type="showHeaderValues ? 'text' : 'password'"
+                    class="form-control"
+                    :placeholder="suggestionForHeader(row.key)"
+                    autocomplete="off"
+                    spellcheck="false"
+                  >
+                  <button
+                    type="button"
+                    class="btn-icon danger"
+                    title="Remove header"
+                    @click="removeHeaderRow(index)"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </div>
+                <div class="header-suggest-row">
+                  <button
+                    v-for="hint in unusedSuggestions(formData.headers)"
+                    :key="hint.name"
+                    type="button"
+                    class="header-suggest-chip"
+                    @click="addSuggestedHeader(formData.headers, hint.name)"
+                  >
+                    + {{ hint.name }}
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" @click="addHeaderRow">
+                    + Custom
+                  </button>
+                </div>
               </div>
+              <datalist id="watchtower-header-suggestions">
+                <option v-for="hint in SUGGESTED_HEADERS" :key="hint.name" :value="hint.name" />
+              </datalist>
             </div>
-            <datalist id="watchtower-header-suggestions">
-              <option v-for="hint in SUGGESTED_HEADERS" :key="hint.name" :value="hint.name" />
-            </datalist>
-          </div>
+          </template>
+
           <div
             v-if="formMessage"
             class="small"
@@ -245,8 +311,8 @@
           </div>
           <div class="url-modal-footer url-modal-footer-inline">
             <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
-            <button type="submit" class="btn btn-primary" :disabled="saving">
-              {{ saving ? 'Saving…' : 'Save' }}
+            <button type="submit" class="btn btn-primary" :disabled="saving || saveDisabled">
+              {{ saveButtonLabel }}
             </button>
           </div>
         </form>
@@ -259,6 +325,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useApi } from '../composables/useApi'
 import { matchDomain, parseHeadersJson, SUGGESTED_HEADERS, suggestionForHeader } from '../utils/domainHeaders'
+import { generateUrlName, parsePasteInput, validateUrl } from '../utils/urlValidation'
 
 const emit = defineEmits(['urlUpdated'])
 
@@ -272,11 +339,13 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
-const { fetchUrls, addUrl, updateUrl, deleteUrl, fetchDomainHeaders } = useApi()
+const { fetchUrls, addUrl, addUrls, updateUrl, deleteUrl, fetchDomainHeaders } = useApi()
 const domainProfiles = ref([])
 
 const urls = ref([])
 const isEditing = ref(false)
+const addMode = ref('manual')
+const pasteText = ref('')
 const modalOpen = ref(false)
 const saving = ref(false)
 const formMessage = ref('')
@@ -284,8 +353,28 @@ const formSuccess = ref(false)
 const actionMessage = ref('')
 const actionSuccess = ref(false)
 const nameInput = ref(null)
+const pasteInput = ref(null)
 const categoryOptions = CATEGORY_OPTIONS
 const showHeaderValues = ref(true)
+
+const pastePreview = computed(() => parsePasteInput(pasteText.value))
+
+const saveDisabled = computed(() => {
+  if (saving.value) return true
+  if (!isEditing.value && addMode.value === 'paste') {
+    return pastePreview.value.rows.length === 0
+  }
+  return false
+})
+
+const saveButtonLabel = computed(() => {
+  if (saving.value) return 'Saving…'
+  if (!isEditing.value && addMode.value === 'paste') {
+    const n = pastePreview.value.rows.length
+    return n > 0 ? `Save ${n} URL${n === 1 ? '' : 's'}` : 'Save'
+  }
+  return 'Save'
+})
 
 const emptyHeaderRow = () => ({ key: '', value: '' })
 
@@ -417,6 +506,8 @@ function lockBodyScroll(lock) {
 
 async function openAddModal() {
   isEditing.value = false
+  addMode.value = 'manual'
+  pasteText.value = ''
   showHeaderValues.value = true
   formData.value = emptyForm()
   formMessage.value = ''
@@ -452,14 +543,63 @@ function closeModal() {
 }
 
 async function handleSave() {
-  if (!formData.value.urlName?.trim() || !formData.value.url?.trim()) {
-    formMessage.value = 'Please fill in name and URL'
+  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
+    formMessage.value = 'Enter a custom category, or pick a preset'
     formSuccess.value = false
     return
   }
 
-  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
-    formMessage.value = 'Enter a custom category, or pick a preset'
+  const category = resolveCategory(formData.value.category, formData.value.categoryCustom)
+  const visibility = formData.value.visibility === 'public' ? 'public' : 'private'
+
+  if (!isEditing.value && addMode.value === 'paste') {
+    const { rows, errors } = pastePreview.value
+    if (rows.length === 0) {
+      formMessage.value = errors[0] || 'Paste at least one valid HTTPS URL'
+      formSuccess.value = false
+      return
+    }
+
+    saving.value = true
+    formMessage.value = ''
+
+    const payloads = rows.map((row) => ({
+      urlName: row.urlName,
+      url: row.url,
+      category,
+      visibility,
+      headers: []
+    }))
+
+    const result = await addUrls(payloads)
+    if (result.success) {
+      const n = result.saved?.length || payloads.length
+      formMessage.value = `${n} URL${n === 1 ? '' : 's'} saved.`
+      formSuccess.value = true
+      actionMessage.value = formMessage.value
+      actionSuccess.value = true
+      await loadUrls()
+      emit('urlUpdated')
+      setTimeout(closeModal, 700)
+    } else {
+      formMessage.value = result.error || 'Failed to save URLs'
+      formSuccess.value = false
+    }
+
+    saving.value = false
+    return
+  }
+
+  const urlCheck = validateUrl(formData.value.url)
+  if (!urlCheck.valid) {
+    formMessage.value = urlCheck.error || 'Invalid URL'
+    formSuccess.value = false
+    return
+  }
+
+  const urlName = formData.value.urlName?.trim() || generateUrlName(urlCheck.url)
+  if (!urlName) {
+    formMessage.value = 'Please fill in name and URL'
     formSuccess.value = false
     return
   }
@@ -468,10 +608,10 @@ async function handleSave() {
   formMessage.value = ''
 
   const payload = {
-    urlName: formData.value.urlName.trim(),
-    url: formData.value.url.trim(),
-    category: resolveCategory(formData.value.category, formData.value.categoryCustom),
-    visibility: formData.value.visibility === 'public' ? 'public' : 'private',
+    urlName,
+    url: urlCheck.url,
+    category,
+    visibility,
     headers: formData.value.headers
   }
 
@@ -482,6 +622,8 @@ async function handleSave() {
   if (result.success) {
     formMessage.value = isEditing.value ? 'URL updated.' : 'URL added.'
     formSuccess.value = true
+    actionMessage.value = formMessage.value
+    actionSuccess.value = true
     await loadUrls()
     emit('urlUpdated')
     setTimeout(closeModal, 600)
@@ -663,6 +805,68 @@ onUnmounted(() => lockBodyScroll(false))
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
+
+.add-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface, #0f0f0f);
+}
+
+.add-mode-tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.55rem 0.65rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+}
+
+.add-mode-tab.active {
+  background: var(--bg-panel, #1a1a1a);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.paste-textarea {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  min-height: 12rem;
+  resize: vertical;
+}
+
+.paste-preview {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.35rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.paste-ok {
+  color: var(--color-success, #22c55e);
+}
+
+.paste-bad {
+  color: var(--danger, #ef4444);
+}
+
+.paste-errors {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--danger, #ef4444);
+  font-size: 0.75rem;
+}
 </style>
 
 <!-- Unscoped: Teleport-to-body must not depend on data-v-* for stacking / clicks -->
@@ -700,6 +904,10 @@ onUnmounted(() => lockBodyScroll(false))
   border-radius: var(--radius-md, 8px);
   color: var(--text-main, #f5f5f5);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.url-modal-dialog-wide {
+  width: min(680px, 100%);
 }
 
 .url-modal-dialog input,
