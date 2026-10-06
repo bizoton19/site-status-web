@@ -82,12 +82,19 @@ const props = defineProps({
 
 const emit = defineEmits(['navigate-statuses'])
 
+function isSuccessStatus(s) {
+  const code = Number(s?.statusCode)
+  if (code === 200 || code === 201) return true
+  const status = String(s?.status ?? '').trim().toUpperCase()
+  return status === 'OK' || status === 'CREATED' || status === '200' || status === '201'
+}
+
 const onlineCount = computed(() =>
-  props.statuses.filter(s => s.status === 'OK').length
+  props.statuses.filter((s) => isSuccessStatus(s)).length
 )
 
 const offlineCount = computed(() =>
-  props.statuses.filter(s => s.status !== 'OK').length
+  props.statuses.filter((s) => !isSuccessStatus(s)).length
 )
 
 const totalCount = computed(() => props.statuses.length)

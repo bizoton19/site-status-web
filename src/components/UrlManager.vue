@@ -363,7 +363,7 @@
                 </label>
               </div>
               <p class="headers-hint">
-                Optional. Only for this endpoint (e.g. API key). Leave blank to use domain defaults or the Outpost13 User-Agent.
+                Prefills <code>User-Agent: {{ DEFAULT_MONITOR_USER_AGENT }}</code> (WAF allowlists). Domain headers or an explicit User-Agent override it.
               </p>
               <div class="headers-editor">
                 <div
@@ -452,6 +452,7 @@ import {
   suggestionForHeader
 } from '../utils/domainHeaders'
 import { generateUrlName, parseUrlImport, validateUrl } from '../utils/urlValidation'
+import { DEFAULT_MONITOR_USER_AGENT } from '../composables/useApi'
 
 const emit = defineEmits(['urlUpdated'])
 
@@ -465,7 +466,7 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
-const { fetchUrls, addUrl, addUrls, updateUrl, deleteUrl, deleteUrls, fetchDomainHeaders } = useApi()
+const { fetchUrls, fetchUrlsWithRetry, addUrl, addUrls, updateUrl, deleteUrl, deleteUrls, fetchDomainHeaders } = useApi()
 const domainProfiles = ref([])
 
 const urls = ref([])
@@ -511,13 +512,17 @@ const saveButtonLabel = computed(() => {
 
 const emptyHeaderRow = () => ({ key: '', value: '' })
 
+const defaultHeaderRows = () => [
+  { key: 'User-Agent', value: DEFAULT_MONITOR_USER_AGENT }
+]
+
 const emptyForm = () => ({
   urlName: '',
   url: '',
   category: 'General',
   categoryCustom: '',
   visibility: 'private',
-  headers: [emptyHeaderRow()]
+  headers: defaultHeaderRows()
 })
 
 const formData = ref(emptyForm())
@@ -721,11 +726,43 @@ function removeHeaderRow(index) {
   }
 }
 
+function mergeSavedUrls(saved) {
+  if (!Array.isArray(saved) || saved.length === 0) return
+  const byName = new Map(urls.value.map((u) => [urlNameOf(u), u]))
+  for (const entity of saved) {
+    const name = urlNameOf(entity)
+    if (!name) continue
+    byName.set(name, entity)
+  }
+  urls.value = [...byName.values()]
+}
+
+function syncSelection() {
+  const valid = new Set(urls.value.map((u) => urlNameOf(u)).filter(Boolean))
+  selectedNames.value = new Set([...selectedNames.value].filter((n) => valid.has(n)))
+}
+
 async function loadUrls() {
   const data = await fetchUrls()
   urls.value = Array.isArray(data) ? data : []
-  const valid = new Set(urls.value.map((u) => urlNameOf(u)).filter(Boolean))
-  selectedNames.value = new Set([...selectedNames.value].filter((n) => valid.has(n)))
+  syncSelection()
+}
+
+/** Merge POST result immediately, then refetch with short backoff if the list is stale. */
+async function reloadUrlsAfterSave(saved) {
+  mergeSavedUrls(saved)
+  syncSelection()
+  const expectedNames = (saved || []).map((u) => urlNameOf(u)).filter(Boolean)
+  const data = await fetchUrlsWithRetry({ expectedNames, attempts: 3 })
+  if (Array.isArray(data) && data.length > 0) {
+    const byName = new Map(data.map((u) => [urlNameOf(u), u]))
+    for (const entity of saved || []) {
+      const name = urlNameOf(entity)
+      if (name && !byName.has(name)) byName.set(name, entity)
+    }
+    urls.value = [...byName.values()]
+  }
+  syncSelection()
 }
 
 async function loadDomainProfiles() {
@@ -819,19 +856,22 @@ async function handleSave() {
       url: row.url,
       category: String(row.category || '').trim() || defaultCategory,
       visibility,
-      headers: []
+      headers: defaultHeaderRows()
     }))
 
     const result = await addUrls(payloads)
-    if (result.success) {
-      const n = result.saved?.length || payloads.length
-      formMessage.value = `${n} URL${n === 1 ? '' : 's'} saved.`
+    const savedCount = Array.isArray(result.saved) ? result.saved.length : 0
+    if (result.success && savedCount > 0) {
+      formMessage.value =
+        savedCount < payloads.length
+          ? `Saved ${savedCount} of ${payloads.length} URLs (${payloads.length - savedCount} skipped as invalid).`
+          : `${savedCount} URL${savedCount === 1 ? '' : 's'} saved.`
       formSuccess.value = true
       actionMessage.value = formMessage.value
       actionSuccess.value = true
-      await loadUrls()
+      await reloadUrlsAfterSave(result.saved)
       emit('urlUpdated')
-      setTimeout(closeModal, 700)
+      closeModal()
     } else {
       formMessage.value = result.error || 'Failed to save URLs'
       formSuccess.value = false
@@ -878,14 +918,15 @@ async function handleSave() {
     ? await updateUrl(payload)
     : await addUrl(payload)
 
-  if (result.success) {
+  const savedCount = Array.isArray(result.saved) ? result.saved.length : 0
+  if (result.success && savedCount > 0) {
     formMessage.value = isEditing.value ? 'URL updated.' : 'URL added.'
     formSuccess.value = true
     actionMessage.value = formMessage.value
     actionSuccess.value = true
-    await loadUrls()
+    await reloadUrlsAfterSave(result.saved)
     emit('urlUpdated')
-    setTimeout(closeModal, 600)
+    closeModal()
   } else {
     formMessage.value = result.error || 'An error occurred'
     formSuccess.value = false

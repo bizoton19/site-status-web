@@ -291,7 +291,7 @@ const headerTitle = computed(() => {
 })
 
 const headerSubtitle = computed(() => {
-  const online = statuses.value.filter((s) => s.status === 'OK').length
+  const online = statuses.value.filter((s) => isSuccessRow(s)).length
   const total = statuses.value.length
   let filterNote = ''
   if (activeTab.value === 'statuses' && statusesFilter.value === 'online') {
@@ -316,20 +316,33 @@ function toastIconClass(type) {
   return 'bi bi-check-circle'
 }
 
+function isSuccessRow(item) {
+  const code = Number(item.StatusCode ?? item.statusCode)
+  if (code === 200 || code === 201) return true
+  const s = String(item.Status ?? item.status ?? '').trim().toUpperCase()
+  return s === 'OK' || s === 'CREATED' || s === '200' || s === '201'
+}
+
 async function loadStatuses() {
   const data = await fetchStatuses()
   statuses.value = data
     .map((item) => ({
-      rowKey: item.RowKey,
-      urlName: item.UrlName,
-      url: item.Url,
-      description: item.Description,
-      status: item.Status,
-      date: item.Date,
+      rowKey: item.RowKey ?? item.rowKey,
+      urlName: item.UrlName ?? item.urlName,
+      url: item.Url ?? item.url,
+      description: item.Description ?? item.description,
+      status: item.Status ?? item.status,
+      statusCode: item.StatusCode ?? item.statusCode ?? 0,
+      durationMs: item.DurationMs ?? item.durationMs ?? null,
+      lastRequestJson: item.LastRequestJson ?? item.lastRequestJson ?? '',
+      lastResponseJson: item.LastResponseJson ?? item.lastResponseJson ?? '',
+      date: item.Date ?? item.date
     }))
     .sort((a, b) => {
-      if (a.status === 'OK' && b.status !== 'OK') return 1
-      if (a.status !== 'OK' && b.status === 'OK') return -1
+      const aOk = isSuccessRow(a)
+      const bOk = isSuccessRow(b)
+      if (aOk && !bOk) return 1
+      if (!aOk && bOk) return -1
       return 0
     })
 }

@@ -183,6 +183,25 @@ async function authHeaders(extraHeaders = {}) {
     : extraHeaders
 }
 
+/**
+ * Default poller User-Agent. Keep in sync with Functions CustomHeaders.DefaultUserAgent
+ * (WAF allowlist docs use this exact string).
+ */
+export const DEFAULT_MONITOR_USER_AGENT = 'WatchtowerMonitor/1.0'
+
+function hasUserAgentHeader(headers) {
+  return Object.keys(headers || {}).some((k) => k.toLowerCase() === 'user-agent')
+}
+
+/** Ensure every URL payload includes a User-Agent unless the caller set one. */
+function ensureDefaultUserAgent(headers) {
+  const out = headers && typeof headers === 'object' ? { ...headers } : {}
+  if (!hasUserAgentHeader(out)) {
+    out['User-Agent'] = DEFAULT_MONITOR_USER_AGENT
+  }
+  return out
+}
+
 /** Normalize header rows → { Key: value } for urlPersister. */
 function buildUrlPayload(urlData) {
   const headers = {}
@@ -199,8 +218,12 @@ function buildUrlPayload(urlData) {
     url: urlData.url,
     category: urlData.category || 'General',
     visibility: urlData.visibility === 'public' ? 'public' : 'private',
-    headers
+    headers: ensureDefaultUserAgent(headers)
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export function useApi() {
@@ -395,7 +418,7 @@ export function useApi() {
       }
 
       const data = await response.json()
-      return data
+      return Array.isArray(data) ? data : []
     } catch (err) {
       error.value = err.message
       console.error('Error fetching URLs:', err)
@@ -403,6 +426,36 @@ export function useApi() {
     } finally {
       loading.value = false
     }
+  }
+
+  /**
+   * Re-fetch URL list with short backoff when the first read looks empty/stale
+   * relative to names we just saved.
+   */
+  async function fetchUrlsWithRetry({ expectedNames = [], attempts = 3 } = {}) {
+    const expected = new Set(
+      (expectedNames || []).map((n) => String(n || '').trim()).filter(Boolean)
+    )
+    const delays = [200, 350, 500]
+    let last = []
+
+    for (let i = 0; i < attempts; i++) {
+      last = await fetchUrls()
+      if (expected.size === 0) {
+        if (last.length > 0 || i === attempts - 1) return last
+      } else {
+        const names = new Set(
+          last.map((u) => u?.UrlName || u?.urlName || '').filter(Boolean)
+        )
+        const hasAll = [...expected].every((n) => names.has(n))
+        if (hasAll) return last
+      }
+      if (i < attempts - 1) {
+        await sleep(delays[Math.min(i, delays.length - 1)])
+      }
+    }
+
+    return last
   }
 
   async function persistUrls(method, urlDataList) {
@@ -420,6 +473,13 @@ export function useApi() {
         body: JSON.stringify(payload)
       })
 
+      // Sync write must return 200 + entities — 202 means queue-only / incomplete.
+      if (response.status === 202) {
+        throw new Error(
+          'URL save was accepted but not confirmed by the server. Refresh and try again.'
+        )
+      }
+
       if (!response.ok) {
         let detail = `HTTP error! status: ${response.status}`
         try {
@@ -431,12 +491,15 @@ export function useApi() {
         throw new Error(detail)
       }
 
-      const saved = await response.json().catch(() => [])
-      return { success: true, saved: Array.isArray(saved) ? saved : [] }
+      const saved = await response.json().catch(() => null)
+      if (!Array.isArray(saved) || saved.length === 0) {
+        throw new Error('Server did not return saved URLs. Nothing was confirmed.')
+      }
+      return { success: true, saved }
     } catch (err) {
       error.value = err.message
       console.error(`Error ${method} URLs:`, err)
-      return { success: false, error: err.message }
+      return { success: false, error: err.message, saved: [] }
     } finally {
       loading.value = false
     }
@@ -627,6 +690,7 @@ export function useApi() {
     refreshStatuses,
     submitPollRequest,
     fetchUrls,
+    fetchUrlsWithRetry,
     addUrl,
     addUrls,
     updateUrl,
