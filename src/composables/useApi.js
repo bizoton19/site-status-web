@@ -236,7 +236,8 @@ export function useApi() {
 
   /**
    * Public landing directory — anonymous, public endpoints only.
-   * Returns { summary, page, pageSize, totalDomains, totalPages, groups }.
+   * Returns { summary, page, pageSize, totalOwners, totalPages, groups }.
+   * Groups are owner-partition buckets with opaque groupKey (never render as a label).
    * @param {{ q?: string, category?: string, page?: number, pageSize?: number }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
@@ -247,7 +248,7 @@ export function useApi() {
       summary: { domains: 0, urls: 0, up: 0, down: 0, uptimePct: 0 },
       page: 1,
       pageSize: 10,
-      totalDomains: 0,
+      totalOwners: 0,
       totalPages: 1,
       groups: []
     }
@@ -296,21 +297,22 @@ export function useApi() {
         },
         page: data.page ?? data.Page ?? 1,
         pageSize: data.pageSize ?? data.PageSize ?? 10,
-        totalDomains: data.totalDomains ?? data.TotalDomains ?? 0,
+        totalOwners: data.totalOwners ?? data.TotalOwners
+          ?? data.totalDomains ?? data.TotalDomains ?? 0,
         totalPages: data.totalPages ?? data.TotalPages ?? 1,
         groups: (data.groups || data.Groups || []).map((g) => ({
-          domain: g.domain || g.Domain || 'unknown',
+          // Opaque key for Vue :key only — never display as owner label
+          groupKey: g.groupKey || g.GroupKey || g.domain || g.Domain || 'group',
           urlCount: g.urlCount ?? g.UrlCount ?? 0,
           upCount: g.upCount ?? g.UpCount ?? 0,
           downCount: g.downCount ?? g.DownCount ?? 0,
           items: (g.items || g.Items || []).map((row) => ({
             urlName: row.UrlName ?? row.urlName ?? '',
             url: row.Url ?? row.url ?? '',
-            domain: row.Domain ?? row.domain ?? g.domain ?? g.Domain ?? '',
+            domain: row.Domain ?? row.domain ?? '',
             category: row.Category ?? row.category ?? 'General',
             status: row.Status ?? row.status ?? '',
-            date: row.Date ?? row.date ?? null,
-            orgLabel: row.OrgLabel ?? row.orgLabel ?? 'Watchtower'
+            date: row.Date ?? row.date ?? null
           }))
         }))
       }

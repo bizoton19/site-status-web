@@ -131,7 +131,7 @@
           <p class="panel-kicker">Public directory</p>
           <h2>Live endpoints</h2>
           <p class="directory-lead">
-            Publicly shared monitors, grouped by domain. Mark endpoints public from Manage.
+            Publicly shared monitors, grouped by owner. Mark endpoints public from Manage.
           </p>
         </div>
         <div class="directory-controls">
@@ -139,7 +139,7 @@
             v-model="directoryQuery"
             type="search"
             class="form-control directory-search"
-            placeholder="Search name, URL, domain, org…"
+            placeholder="Search name, URL, domain…"
             aria-label="Search public endpoints"
             @keyup.enter="onSearch"
           >
@@ -164,11 +164,10 @@
       <div v-else class="directory-groups">
         <article
           v-for="group in directoryGroups"
-          :key="group.domain"
+          :key="group.groupKey"
           class="directory-group"
         >
-          <header class="directory-group-header">
-            <h3>{{ group.domain }}</h3>
+          <header class="directory-group-header" aria-label="Owner group">
             <span>
               {{ group.urlCount }} URL{{ group.urlCount === 1 ? '' : 's' }}
               · {{ group.upCount }} up
@@ -181,7 +180,6 @@
                 <tr>
                   <th>Endpoint</th>
                   <th>Category</th>
-                  <th>Org</th>
                   <th>Status</th>
                   <th>Last checked</th>
                 </tr>
@@ -203,7 +201,6 @@
                   <td>
                     <span class="cat-chip">{{ item.category }}</span>
                   </td>
-                  <td>{{ item.orgLabel }}</td>
                   <td>
                     <span class="status-pill" :class="statusClass(item.status)">
                       {{ formatStatus(item.status) }}
@@ -218,7 +215,7 @@
             v-if="group.urlCount > group.items.length"
             class="directory-truncated"
           >
-            Showing {{ group.items.length }} of {{ group.urlCount }} on this domain
+            Showing {{ group.items.length }} of {{ group.urlCount }} in this group
             (page cap). Refine search to narrow results.
           </p>
         </article>
@@ -227,7 +224,7 @@
       <nav
         v-if="totalPages > 1"
         class="directory-pagination"
-        aria-label="Domain pages"
+        aria-label="Owner group pages"
       >
         <button
           type="button"
@@ -239,7 +236,7 @@
         </button>
         <span class="page-meta">
           Page {{ directoryPage }} of {{ totalPages }}
-          · {{ totalDomains }} domain{{ totalDomains === 1 ? '' : 's' }}
+          · {{ totalOwners }} group{{ totalOwners === 1 ? '' : 's' }}
         </span>
         <button
           type="button"
@@ -257,13 +254,77 @@
         <p class="panel-kicker">Architecture</p>
         <h2>Built for cheap scale, tenant safety, and boring reliability.</h2>
       </div>
-      <div class="architecture-list">
-        <span>.NET 10 isolated Functions</span>
-        <span>Flex Consumption</span>
-        <span>Durable fan-out polling</span>
-        <span>Azure Tables by tenant</span>
-        <span>Clerk auth</span>
-        <span>ACS alerts</span>
+      <div class="architecture-skyline" aria-hidden="true">
+        <svg
+          class="skyline-svg"
+          viewBox="0 0 640 200"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMax meet"
+        >
+          <!-- Minimal futuristic city skyline — stroke/outline only -->
+          <g
+            fill="none"
+            stroke="var(--text-accent)"
+            stroke-width="1.75"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          >
+            <!-- Far left tower cluster -->
+            <path d="M28 200 V118 H48 V200" />
+            <path d="M48 200 V92 H78 V200" />
+            <path d="M54 92 V72 H72 V92" />
+            <path d="M58 72 L63 52 L68 72" />
+            <!-- Mid-left blocks -->
+            <path d="M90 200 V128 H130 V200" />
+            <path d="M100 128 V108 H120 V128" />
+            <path d="M138 200 V84 H178 V200" />
+            <path d="M148 84 V64 H168 V84" />
+            <path d="M154 64 L158 42 L162 64" />
+            <!-- Center spire -->
+            <path d="M198 200 V58 H248 V200" />
+            <path d="M210 58 V36 H236 V58" />
+            <path d="M218 36 L223 8 L228 36" />
+            <path d="M208 100 H238" />
+            <path d="M208 130 H238" />
+            <path d="M208 160 H238" />
+            <!-- Antenna array -->
+            <path d="M258 200 V70 H292 V200" />
+            <path d="M268 70 V48" />
+            <path d="M275 70 V38" />
+            <path d="M282 70 V52" />
+            <path d="M262 100 H288" />
+            <path d="M262 140 H288" />
+            <!-- Right megastructure -->
+            <path d="M310 200 V46 H380 V200" />
+            <path d="M322 46 V22 H368 V46" />
+            <path d="M338 22 L345 4 L352 22" />
+            <path d="M320 80 H370" />
+            <path d="M320 110 H370" />
+            <path d="M320 140 H370" />
+            <path d="M320 170 H370" />
+            <!-- Right mid towers -->
+            <path d="M398 200 V96 H430 V200" />
+            <path d="M408 96 V76 H420 V96" />
+            <path d="M440 200 V110 H488 V200" />
+            <path d="M452 110 V78 H476 V110" />
+            <path d="M460 78 L464 58 L468 78" />
+            <!-- Far right silhouette -->
+            <path d="M500 200 V120 H540 V200" />
+            <path d="M512 120 V98 H528 V120" />
+            <path d="M548 200 V88 H590 V200" />
+            <path d="M560 88 V62 H578 V88" />
+            <path d="M566 62 L569 40 L572 62" />
+            <path d="M598 200 V140 H620 V200" />
+          </g>
+          <!-- Soft horizon line -->
+          <path
+            d="M12 200 H628"
+            fill="none"
+            stroke="var(--border-active)"
+            stroke-width="1"
+            opacity="0.55"
+          />
+        </svg>
       </div>
     </section>
   </main>
@@ -287,7 +348,7 @@ const CATEGORY_OPTIONS = [
   'Search'
 ]
 
-const DOMAINS_PER_PAGE = 10
+const OWNERS_PER_PAGE = 10
 
 const router = useRouter()
 const { fetchPublicStatuses } = useApi()
@@ -299,7 +360,7 @@ const directoryQuery = ref('')
 const directoryCategory = ref('')
 const directoryPage = ref(1)
 const totalPages = ref(1)
-const totalDomains = ref(0)
+const totalOwners = ref(0)
 const categoryOptions = CATEGORY_OPTIONS
 
 const domainCount = ref(0)
@@ -350,12 +411,12 @@ async function loadDirectory() {
       q: directoryQuery.value.trim() || undefined,
       category: directoryCategory.value || undefined,
       page: directoryPage.value,
-      pageSize: DOMAINS_PER_PAGE
+      pageSize: OWNERS_PER_PAGE
     })
     applySummary(data.summary || {})
     directoryGroups.value = data.groups || []
     totalPages.value = data.totalPages || 1
-    totalDomains.value = data.totalDomains || 0
+    totalOwners.value = data.totalOwners || 0
     directoryPage.value = data.page || directoryPage.value
   } finally {
     directoryLoading.value = false
@@ -723,27 +784,23 @@ function goToApp() {
   border-radius: 22px;
   padding: 1.25rem;
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
   gap: 1rem;
   align-items: center;
 }
 
-.architecture-list {
+.architecture-skyline {
+  width: 100%;
+  min-height: 140px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  align-items: flex-end;
 }
 
-.architecture-list span {
-  border: 1px solid var(--border-color);
-  background: var(--bg-surface);
-  border-radius: 999px;
-  padding: 0.45rem 0.7rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.skyline-svg {
+  width: 100%;
+  height: clamp(120px, 22vw, 200px);
+  display: block;
+  opacity: 0.92;
 }
 
 .directory-section {
@@ -811,18 +868,11 @@ function goToApp() {
 .directory-group-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border-color);
-}
-
-.directory-group-header h3 {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  min-height: 2.6rem;
 }
 
 .directory-group-header span {
