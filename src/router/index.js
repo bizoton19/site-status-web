@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingView from '../views/LandingView.vue'
+import AllStatusesView from '../views/AllStatusesView.vue'
 import DashboardApp from '../views/DashboardApp.vue'
 import SignInView from '../views/SignInView.vue'
 import SignUpView from '../views/SignUpView.vue'
@@ -8,6 +9,7 @@ import { isClerkConfigured } from '../auth/clerkConfig.js'
 /**
  * Product routes (org-scoped SaaS):
  *   /welcome          — public marketing
+ *   /allstatuses      — public full status directory
  *   /sign-in|/sign-up — public Clerk auth
  *   /statuses         — AUTH: org status list (primary home after login)
  *   /dashboard        — AUTH: org overview (counts + charts + preview)
@@ -29,6 +31,12 @@ const router = createRouter({
       path: '/welcome',
       name: 'welcome',
       component: LandingView,
+      meta: { public: true },
+    },
+    {
+      path: '/allstatuses',
+      name: 'allstatuses',
+      component: AllStatusesView,
       meta: { public: true },
     },
     // Catch-all so Clerk path routing can render SSO/factor/continue subpaths

@@ -7,83 +7,135 @@
       focusable="false"
     >
       <defs>
-        <!-- Headlight beam: bright core → amber glass → deep gold edge -->
-        <radialGradient :id="lensId" cx="40%" cy="36%" r="68%">
+        <linearGradient :id="beamId" x1="0%" y1="50%" x2="100%" y2="50%">
+          <stop offset="0%" stop-color="#fff8d6" stop-opacity="0" />
+          <stop offset="35%" stop-color="#ffe066" stop-opacity="0.55" />
+          <stop offset="78%" stop-color="#f0a820" stop-opacity="0.85" />
+          <stop offset="100%" stop-color="#ffcc44" stop-opacity="0.95" />
+        </linearGradient>
+        <radialGradient :id="lensId" cx="42%" cy="38%" r="68%">
           <stop offset="0%" stop-color="#fff8d6" />
-          <stop offset="22%" stop-color="#ffe066" />
-          <stop offset="55%" stop-color="#f0a820" />
+          <stop offset="28%" stop-color="#ffe066" />
+          <stop offset="62%" stop-color="#f0a820" />
           <stop offset="100%" stop-color="#8a5810" />
         </radialGradient>
-        <!-- Soft flashlight cone outside the rim -->
-        <radialGradient :id="glowId" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#ffcc44" stop-opacity="0.5" />
-          <stop offset="50%" stop-color="#e8a020" stop-opacity="0.16" />
-          <stop offset="100%" stop-color="#c08010" stop-opacity="0" />
-        </radialGradient>
+        <linearGradient :id="bodyId" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#6a6a74" />
+          <stop offset="45%" stop-color="#3a3a42" />
+          <stop offset="100%" stop-color="#1c1c22" />
+        </linearGradient>
+        <linearGradient :id="bezelId" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#8a8a96" />
+          <stop offset="50%" stop-color="#4a4a54" />
+          <stop offset="100%" stop-color="#2a2a32" />
+        </linearGradient>
       </defs>
 
-      <!-- Outer beam glow (flashlight cones) -->
-      <circle cx="9.5" cy="16" r="8" :fill="`url(#${glowId})`" />
-      <circle cx="22.5" cy="16" r="8" :fill="`url(#${glowId})`" />
-
-      <!--
-        Möbius / figure-eight band — back lobes under the eyes.
-        Clean outline stroke; muted metal + soft accent for Trinity theme.
-      -->
-      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path :d="mobiusLeft" stroke="#ff3366" stroke-width="2.4" opacity="0.16" />
-        <path :d="mobiusRight" stroke="#ff3366" stroke-width="2.4" opacity="0.16" />
-        <path :d="mobiusLeft" stroke="#55555f" stroke-width="1.45" />
-        <path :d="mobiusRight" stroke="#55555f" stroke-width="1.45" />
-        <path :d="mobiusLeft" stroke="#9a9aa6" stroke-width="0.75" />
-        <path :d="mobiusRight" stroke="#9a9aa6" stroke-width="0.75" />
-      </g>
-
-      <!-- Metallic / dark rims -->
-      <circle
-        cx="9.5"
-        cy="16"
-        r="5.55"
-        fill="#141416"
-        stroke="#5a5a64"
-        stroke-width="1.05"
+      <!-- Golden beam cone (flashlight facing left, on its side) -->
+      <path
+        d="M 11.2 16 L 1.2 9.4 L 1.2 22.6 Z"
+        :fill="`url(#${beamId})`"
+        opacity="0.92"
       />
-      <circle
-        cx="22.5"
-        cy="16"
-        r="5.55"
-        fill="#141416"
-        stroke="#5a5a64"
-        stroke-width="1.05"
+      <path
+        d="M 11.2 16 L 0.6 11.2 L 0.6 20.8 Z"
+        fill="#fff6c8"
+        opacity="0.35"
       />
-      <!-- Inner rim ring -->
-      <circle cx="9.5" cy="16" r="4.7" fill="none" stroke="#2a2a30" stroke-width="0.55" />
-      <circle cx="22.5" cy="16" r="4.7" fill="none" stroke="#2a2a30" stroke-width="0.55" />
 
-      <!-- Lens glass / golden beam -->
-      <circle cx="9.5" cy="16" r="4.25" :fill="`url(#${lensId})`" />
-      <circle cx="22.5" cy="16" r="4.25" :fill="`url(#${lensId})`" />
+      <!-- Soft outer glow near the lens -->
+      <ellipse cx="10.2" cy="16" rx="3.4" ry="5.2" fill="#ffcc44" opacity="0.22" />
 
-      <!-- Hot filament core -->
-      <circle cx="9.5" cy="16" r="1.2" fill="#fff6c8" opacity="0.95" />
-      <circle cx="22.5" cy="16" r="1.2" fill="#fff6c8" opacity="0.95" />
+      <!-- Barrel / body -->
+      <rect
+        x="12.4"
+        y="11.6"
+        width="13.2"
+        height="8.8"
+        rx="2.2"
+        :fill="`url(#${bodyId})`"
+        stroke="#5a5a64"
+        stroke-width="0.7"
+      />
+      <!-- Body highlight groove -->
+      <path
+        d="M 14.2 13.4 H 23.8"
+        fill="none"
+        stroke="#9a9aa6"
+        stroke-width="0.55"
+        opacity="0.55"
+        stroke-linecap="round"
+      />
+      <path
+        d="M 14.2 18.6 H 23.8"
+        fill="none"
+        stroke="#1a1a20"
+        stroke-width="0.55"
+        opacity="0.55"
+        stroke-linecap="round"
+      />
 
-      <!-- Specular highlight on glass -->
-      <circle cx="7.85" cy="14.15" r="0.8" fill="#ffffff" opacity="0.7" />
-      <circle cx="20.85" cy="14.15" r="0.8" fill="#ffffff" opacity="0.7" />
+      <!-- End cap -->
+      <rect
+        x="25.2"
+        y="12.4"
+        width="3.2"
+        height="7.2"
+        rx="1.2"
+        fill="#2a2a32"
+        stroke="#6a6a74"
+        stroke-width="0.65"
+      />
+      <circle cx="26.8" cy="16" r="1.05" fill="#141416" stroke="#55555f" stroke-width="0.45" />
 
-      <!--
-        Half-twist crossing drawn over the mid-gap — sells the Möbius wrap
-        without covering the golden lenses.
-      -->
-      <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-        <path :d="mobiusTwistUnder" stroke="#ff3366" stroke-width="2.1" opacity="0.2" />
-        <path :d="mobiusTwistUnder" stroke="#4a4a54" stroke-width="1.4" />
-        <path :d="mobiusTwistOver" stroke="#ff3366" stroke-width="2.1" opacity="0.28" />
-        <path :d="mobiusTwistOver" stroke="#7a7a86" stroke-width="1.4" />
-        <path :d="mobiusTwistOver" stroke="#c4c4ce" stroke-width="0.7" />
-        <path :d="mobiusTwistAccent" stroke="#ff3366" stroke-width="0.7" opacity="0.9" />
-      </g>
+      <!-- Head / bezel -->
+      <rect
+        x="10.1"
+        y="10.4"
+        width="3.1"
+        height="11.2"
+        rx="1.1"
+        :fill="`url(#${bezelId})`"
+        stroke="#7a7a86"
+        stroke-width="0.55"
+      />
+
+      <!-- Lens glass (ON) -->
+      <ellipse
+        cx="10.5"
+        cy="16"
+        rx="1.55"
+        ry="4.35"
+        :fill="`url(#${lensId})`"
+        stroke="#c9a227"
+        stroke-width="0.45"
+      />
+      <ellipse cx="10.15" cy="14.2" rx="0.55" ry="1.1" fill="#ffffff" opacity="0.65" />
+      <ellipse cx="10.55" cy="16" rx="0.45" ry="1.35" fill="#fff6c8" opacity="0.9" />
+
+      <!-- Slide switch ON (toward the head / beam) -->
+      <rect
+        x="15.6"
+        y="9.35"
+        width="5.4"
+        height="2.35"
+        rx="1.15"
+        fill="#1c1c22"
+        stroke="#5a5a64"
+        stroke-width="0.5"
+      />
+      <rect
+        x="15.85"
+        y="9.55"
+        width="2.55"
+        height="1.95"
+        rx="0.9"
+        fill="#ff3366"
+        stroke="#ff6688"
+        stroke-width="0.35"
+      />
+      <!-- Tiny ON tick -->
+      <circle cx="17.1" cy="10.52" r="0.35" fill="#fff0f4" opacity="0.85" />
     </svg>
   </span>
 </template>
@@ -92,35 +144,8 @@
 import { useId } from 'vue'
 
 const uid = useId().replace(/:/g, '')
+const beamId = `heimdall-beam-${uid}`
 const lensId = `heimdall-lens-${uid}`
-const glowId = `heimdall-glow-${uid}`
-
-/*
-  Figure-eight lobes wrapping each headlight (centers 9.5 / 22.5).
-  Loops sit just outside the metallic rims; they meet at mid (16,16)
-  where the half-twist strands cross.
-*/
-const mobiusLeft =
-  'M 16 16' +
-  'C 16 11.2 12.2 9.1 9.5 9.1' +
-  'C 5.6 9.1 2.9 12.2 2.9 16' +
-  'C 2.9 19.8 5.6 22.9 9.5 22.9' +
-  'C 12.2 22.9 16 20.8 16 16'
-
-const mobiusRight =
-  'M 16 16' +
-  'C 16 11.2 19.8 9.1 22.5 9.1' +
-  'C 26.4 9.1 29.1 12.2 29.1 16' +
-  'C 29.1 19.8 26.4 22.9 22.5 22.9' +
-  'C 19.8 22.9 16 20.8 16 16'
-
-/* Under / over strands of the half-twist between the eyes */
-const mobiusTwistUnder =
-  'M 12.4 13.2 C 14.2 14.8 14.8 17.4 16 18.6 C 17.2 17.4 17.8 14.8 19.6 13.2'
-
-const mobiusTwistOver =
-  'M 12.4 18.8 C 14.2 17.2 14.8 14.6 16 13.4 C 17.2 14.6 17.8 17.2 19.6 18.8'
-
-const mobiusTwistAccent =
-  'M 14.2 14.8 C 15.1 15.9 15.5 16.8 16 17.4 C 16.5 16.8 16.9 15.9 17.8 14.8'
+const bodyId = `heimdall-body-${uid}`
+const bezelId = `heimdall-bezel-${uid}`
 </script>

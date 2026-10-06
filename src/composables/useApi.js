@@ -238,7 +238,7 @@ export function useApi() {
    * Public landing directory — anonymous, public endpoints only.
    * Returns { summary, page, pageSize, totalOwners, totalPages, groups }.
    * Groups are owner-partition buckets with opaque groupKey (never render as a label).
-   * @param {{ q?: string, category?: string, page?: number, pageSize?: number }} [filters]
+   * @param {{ q?: string, category?: string, page?: number, pageSize?: number, maxUrls?: number }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
     loading.value = true
@@ -259,6 +259,7 @@ export function useApi() {
       if (filters.category) params.category = filters.category
       if (filters.page) params.page = filters.page
       if (filters.pageSize) params.pageSize = filters.pageSize
+      if (filters.maxUrls != null && filters.maxUrls !== '') params.maxUrls = filters.maxUrls
 
       const response = await fetch(apiUrl(getPublicStatusesFunctionName(), params), {
         method: 'GET',

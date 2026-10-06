@@ -156,7 +156,7 @@ body::before {
   flex-shrink: 0;
   color: var(--text-accent);
   border-radius: var(--radius-sm);
-  /* Soft golden headlight beam glow — readable at nav size */
+  /* Soft golden flashlight beam glow — readable at nav size */
   filter:
     drop-shadow(0 0 2px rgba(255, 196, 64, 0.6))
     drop-shadow(0 0 5px rgba(240, 160, 32, 0.38))
