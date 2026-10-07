@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Use Case Analysis - Site Status Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        section {
+            margin-bottom: 40px;
+        }
+        
+        h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #764ba2;
+            font-size: 1.4em;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        
+        .app-overview {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .tech-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            text-align: center;
+        }
+        
+        .tech-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .verdict {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+        
+        .verdict.caution {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        
+        .verdict strong {
+            font-size: 1.3em;
+            color: #155724;
+        }
+        
+        .verdict.caution strong {
+            color: #856404;
+        }
+        
+        .use-case {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .use-case:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .use-case-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .priority {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            margin-right: 15px;
+        }
+        
+        .priority.high {
+            background: #28a745;
+            color: white;
+        }
+        
+        .priority.medium {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .priority.low {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .use-case h4 {
+            font-size: 1.3em;
+            color: #333;
+            margin: 0;
+        }
+        
+        .use-case-details {
+            margin-top: 15px;
+        }
+        
+        .detail-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .model-card {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .model-name {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .pros, .cons {
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .pros {
+            background: #d4edda;
+        }
+        
+        .cons {
+            background: #f8d7da;
+        }
+        
+        .pros h5, .cons h5 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .implementation-steps {
+            background: #e7f3ff;
+            border-left: 5px solid #2196F3;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        
+        .implementation-steps ol {
+            margin-left: 20px;
+        }
+        
+        .implementation-steps li {
+            margin-bottom: 12px;
+            padding-left: 10px;
+        }
+        
+        .complexity-meter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .meter-bar {
+            flex: 1;
+            height: 25px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .meter-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.3s;
+        }
+        
+        .complexity-low .meter-fill {
+            width: 33%;
+            background: #28a745;
+        }
+        
+        .complexity-medium .meter-fill {
+            width: 66%;
+            background: #ffc107;
+        }
+        
+        .complexity-high .meter-fill {
+            width: 100%;
+            background: #dc3545;
+        }
+        
+        .cost-estimate {
+            background: #fff9e6;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .cost-estimate h3 {
+            color: #856404;
+        }
+        
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .badge-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            
+            .detail-row {
+                grid-template-columns: 1fr;
+            }
+            
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Use Case Analysis</h1>
+            <p>Site Status Monitoring Dashboard</p>
+        </header>
+        
+        <div class="content">
+            <!-- Application Overview -->
+            <section id="overview">
+                <h2>📊 Application Overview</h2>
+                <div class="app-overview">
+                    <h3>What is this app?</h3>
+                    <p>A <strong>professional site monitoring dashboard</strong> that tracks the uptime and health of multiple websites/endpoints. It polls URLs periodically, stores status history, and provides visualizations for uptime trends, response times, and failure patterns.</p>
+                    
+                    <h3>Current Features</h3>
+                    <ul>
+                        <li>Real-time endpoint status monitoring (OK/Failed)</li>
+                        <li>Manual poll triggering via Azure Functions</li>
+                        <li>URL management (add, edit, delete monitored sites)</li>
+                        <li>Historical data tracking and charts</li>
+                        <li>Search and filtering capabilities</li>
+                        <li>Microsoft Azure AD authentication</li>
+                        <li>Uptime and response time visualizations</li>
+                    </ul>
+                    
+                    <h3>Technology Stack</h3>
+                    <div class="tech-stack">
+                        <div class="tech-item">
+                            <strong>Frontend</strong>
+                            Vue 3 + Vite
+                        </div>
+                        <div class="tech-item">
+                            <strong>Backend</strong>
+                            Azure Functions
+                        </div>
+                        <div class="tech-item">
+                            <strong>Storage</strong>
+                            Azure Table Storage
+                        </div>
+                        <div class="tech-item">
+                            <strong>Auth</strong>
+                            MSAL (Microsoft)
+                        </div>
+                        <div class="tech-item">
+                            <strong>UI Framework</strong>
+                            Bootstrap 5
+                        </div>
+                        <div class="tech-item">
+                            <strong>Charts</strong>
+                            Chart.js
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Main Verdict -->
+            <section id="verdict">
+                <h2>✅ AI Feasibility Verdict</h2>
+                <div class="verdict">
+                    <strong>YES - This app is an EXCELLENT candidate for AI integration!</strong>
+                    <p style="margin-top: 10px;">Site monitoring and uptime tracking is a classic use case for AI/ML. The app already collects structured, time-series data (status checks, response times, failure patterns) which is perfect for machine learning models. AI can add significant value by detecting anomalies, predicting outages, and providing intelligent insights.</p>
+                </div>
+            </section>
+            
+            <!-- Top AI Use Cases -->
+            <section id="use-cases">
+                <h2>🎯 Top AI Use Cases (Ranked by Value)</h2>
+                
+                <!-- Use Case 1: Anomaly Detection -->
+                <div class="use-case">
+                    <div class="use-case-header">
+                        <span class="priority high">High Priority</span>
+                        <h4>1. Anomaly Detection & Intelligent Alerting</h4>
+                    </div>
+                    <p>Detect unusual patterns in site behavior before complete failures occur, reducing false alarms and catching issues early.</p>
+                    
+                    <div class="use-case-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Business Value:</span>
+                            <span>Reduce downtime by 30-50% with early warnings; minimize alert fatigue</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Technical Fit:</span>
+                            <span>Excellent - you already track response times and historical patterns</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Data Required:</span>
+                            <span>2-4 weeks of historical data (you have this!)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Example Detection:</span>
+                            <span>Response time gradually increasing from 200ms to 800ms over 2 hours → alert before site goes down</span>
+                        </div>
+                    </div>
+                    
+                    <div class="complexity-meter complexity-medium">
+                        <strong style="min-width: 120px;">Complexity:</strong>
+                        <div class="meter-bar">
+                            <div class="meter-fill"></div>
+                        </div>
+                        <span>Medium</span>
+                    </div>
+                </div>
+                
+                <!-- Use Case 2: Predictive Maintenance -->
+                <div class="use-case">
+                    <div class="use-case-header">
+                        <span class="priority high">High Priority</span>
+                        <h4>2. Predictive Outage Forecasting</h4>
+                    </div>
+                    <p>Predict when a site is likely to fail in the next 1-24 hours based on historical patterns and current trends.</p>
+                    
+                    <div class="use-case-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Business Value:</span>
+                            <span>Proactive maintenance scheduling; prevent customer-facing downtime</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Technical Fit:</span>
+                            <span>Very Good - time-series data is ideal for predictions</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Data Required:</span>
+                            <span>1-3 months of historical outages with patterns</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Example Prediction:</span>
+                            <span>"Site X has an 87% probability of failure in next 6 hours based on CPU pattern"</span>
+                        </div>
+                    </div>
+                    
+                    <div class="complexity-meter complexity-medium">
+                        <strong style="min-width: 120px;">Complexity:</strong>
+                        <div class="meter-bar">
+                            <div class="meter-fill"></div>
+                        </div>
+                        <span>Medium</span>
+                    </div>
+                </div>
+                
+                <!-- Use Case 3: Natural Language Queries -->
+                <div class="use-case">
+                    <div class="use-case-header">
+                        <span class="priority medium">Medium Priority</span>
+                        <h4>3. Natural Language Query Interface</h4>
+                    </div>
+                    <p>Ask questions in plain English: "Which sites failed most last week?" or "Show me all errors related to timeout issues"</p>
+                    
+                    <div class="use-case-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Business Value:</span>
+                            <span>Faster insights; accessible to non-technical users</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Technical Fit:</span>
+                            <span>Good - structured data makes NLP-to-query conversion straightforward</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Data Required:</span>
+                            <span>Existing historical data + query examples for training</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Example Query:</span>
+                            <span>"Show me sites that have been down more than 3 times this month" → auto-generates filter</span>
+                        </div>
+                    </div>
+                    
+                    <div class="complexity-meter complexity-low">
+                        <strong style="min-width: 120px;">Complexity:</strong>
+                        <div class="meter-bar">
+                            <div class="meter-fill"></div>
+                        </div>
+                        <span>Low</span>
+                    </div>
+                </div>
+                
+                <!-- Use Case 4: Root Cause Analysis -->
+                <div class="use-case">
+                    <div class="use-case-header">
+                        <span class="priority medium">Medium Priority</span>
+                        <h4>4. Automated Root Cause Analysis</h4>
+                    </div>
+                    <p>Automatically analyze failure patterns to suggest likely causes: "Multiple sites with similar errors suggest DNS issues"</p>
+                    
+                    <div class="use-case-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Business Value:</span>
+                            <span>Faster incident resolution; reduce MTTR (Mean Time To Resolution)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Technical Fit:</span>
+                            <span>Medium - requires error message analysis and pattern clustering</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Data Required:</span>
+                            <span>Historical errors with known root causes for training</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Example Analysis:</span>
+                            <span>"All failing sites hosted on AWS us-east-1 → likely AWS region issue"</span>
+                        </div>
+                    </div>
+                    
+                    <div class="complexity-meter complexity-high">
+                        <strong style="min-width: 120px;">Complexity:</strong>
+                        <div class="meter-bar">
+                            <div class="meter-fill"></div>
+                        </div>
+                        <span>High</span>
+                    </div>
+                </div>
+                
+                <!-- Use Case 5: Smart Incident Summaries -->
+                <div class="use-case">
+                    <div class="use-case-header">
+                        <span class="priority low">Low Priority</span>
+                        <h4>5. AI-Generated Incident Reports</h4>
+                    </div>
+                    <p>Automatically generate human-readable summaries of outages and status trends for stakeholders.</p>
+                    
+                    <div class="use-case-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Business Value:</span>
+                            <span>Save time on reporting; consistent communication</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Technical Fit:</span>
+                            <span>Excellent - text generation is a solved problem with LLMs</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Data Required:</span>
+                            <span>Status history (already have) + optional: past report examples</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Example Output:</span>
+                            <span>"Weekly Summary: 15 endpoints monitored, 2 incidents (both resolved < 1hr), 99.8% uptime"</span>
+                        </div>
+                    </div>
+                    
+                    <div class="complexity-meter complexity-low">
+                        <strong style="min-width: 120px;">Complexity:</strong>
+                        <div class="meter-bar">
+                            <div class="meter-fill"></div>
+                        </div>
+                        <span>Low</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Recommended Models -->
+            <section id="models">
+                <h2>🧠 Recommended AI Models by Use Case</h2>
+                
+                <div class="model-card">
+                    <div class="model-name">
+                        <span class="badge badge-success">Anomaly Detection</span>
+                        Isolation Forest / LSTM Autoencoder
+                    </div>
+                    <p><strong>Type:</strong> Unsupervised Machine Learning</p>
+                    <p><strong>Best For:</strong> Detecting unusual response times, irregular patterns</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Pros</h5>
+                            <ul>
+                                <li>No labeled data needed</li>
+                                <li>Works with small datasets</li>
+                                <li>Fast predictions (< 100ms)</li>
+                                <li>Python libraries readily available (scikit-learn)</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>❌ Cons</h5>
+                            <ul>
+                                <li>Requires tuning sensitivity</li>
+                                <li>May produce false positives initially</li>
+                                <li>Needs periodic retraining</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="implementation-steps">
+                        <h5>Implementation Steps:</h5>
+                        <ol>
+                            <li><strong>Data Collection:</strong> Export 2-4 weeks of response time + status history from Azure Table Storage</li>
+                            <li><strong>Feature Engineering:</strong> Calculate rolling averages, standard deviations, time-of-day patterns</li>
+                            <li><strong>Model Training:</strong> Train Isolation Forest model using scikit-learn (Python)</li>
+                            <li><strong>Integration:</strong> Create Azure Function to score new data points in real-time</li>
+                            <li><strong>UI Alert:</strong> Add "Anomaly Detected" badge in StatusGrid component when score exceeds threshold</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="cost-estimate">
+                        <h3>💰 Cost Estimate</h3>
+                        <p><strong>Development:</strong> 40-60 hours (2-3 weeks for 1 developer)</p>
+                        <p><strong>Infrastructure:</strong> ~$20-50/month (Azure ML or small VM for model serving)</p>
+                        <p><strong>Maintenance:</strong> 5-10 hours/month (monitoring, retraining)</p>
+                    </div>
+                </div>
+                
+                <div class="model-card">
+                    <div class="model-name">
+                        <span class="badge badge-success">Predictive Forecasting</span>
+                        Prophet / XGBoost Time Series
+                    </div>
+                    <p><strong>Type:</strong> Time Series Forecasting</p>
+                    <p><strong>Best For:</strong> Predicting outages 1-24 hours ahead</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Pros</h5>
+                            <ul>
+                                <li>Prophet handles seasonality automatically</li>
+                                <li>Good with irregular intervals</li>
+                                <li>Easy to interpret predictions</li>
+                                <li>Works well with limited data</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>❌ Cons</h5>
+                            <ul>
+                                <li>Requires at least 1-2 months of data</li>
+                                <li>Needs feature engineering for best results</li>
+                                <li>Predictions are probabilistic (not guarantees)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="cost-estimate">
+                        <h3>💰 Cost Estimate</h3>
+                        <p><strong>Development:</strong> 60-80 hours (3-4 weeks for 1 developer)</p>
+                        <p><strong>Infrastructure:</strong> ~$30-80/month</p>
+                        <p><strong>Maintenance:</strong> 10-15 hours/month</p>
+                    </div>
+                </div>
+                
+                <div class="model-card">
+                    <div class="model-name">
+                        <span class="badge badge-info">Natural Language</span>
+                        OpenAI GPT-4 / Azure OpenAI
+                    </div>
+                    <p><strong>Type:</strong> Large Language Model (API-based)</p>
+                    <p><strong>Best For:</strong> Natural language queries + incident report generation</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Pros</h5>
+                            <ul>
+                                <li>No training required (use API directly)</li>
+                                <li>Already integrated with Azure</li>
+                                <li>Handles complex queries naturally</li>
+                                <li>Can generate polished reports</li>
+                                <li>Fast to implement (1-2 weeks)</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>❌ Cons</h5>
+                            <ul>
+                                <li>API costs: $0.03-0.12 per query</li>
+                                <li>Requires prompt engineering</li>
+                                <li>Latency: 2-5 seconds per query</li>
+                                <li>Need to structure data properly</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="implementation-steps">
+                        <h5>Simple Implementation (Using Azure OpenAI):</h5>
+                        <ol>
+                            <li><strong>Setup:</strong> Create Azure OpenAI resource (already in Azure ecosystem)</li>
+                            <li><strong>Add Chat UI:</strong> Add a search bar: "Ask about your sites..."</li>
+                            <li><strong>Context Injection:</strong> Send status history as JSON in prompt</li>
+                            <li><strong>Query Processing:</strong> Let GPT-4 interpret and respond</li>
+                            <li><strong>Result Display:</strong> Show answer + optionally highlight relevant data</li>
+                        </ol>
+                        <p style="margin-top: 15px;"><strong>Example Prompt Template:</strong></p>
+                        <pre style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 0.9em;">You are a site monitoring assistant. Based on this data:
+{status_history_json}
+
+User asks: "{user_question}"
+
+Provide a concise answer with specific metrics.</pre>
+                    </div>
+                    
+                    <div class="cost-estimate">
+                        <h3>💰 Cost Estimate</h3>
+                        <p><strong>Development:</strong> 20-30 hours (1-2 weeks for 1 developer)</p>
+                        <p><strong>Infrastructure:</strong> Pay-per-use (estimated $50-200/month for moderate usage)</p>
+                        <p><strong>Maintenance:</strong> 2-5 hours/month</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Quick Start Recommendation -->
+            <section id="quick-start">
+                <h2>🚀 Quick Start Recommendation</h2>
+                <div class="verdict caution">
+                    <strong>Start Here: Natural Language Interface with Azure OpenAI</strong>
+                    <p style="margin-top: 10px;"><strong>Why this first?</strong></p>
+                    <ul style="margin-top: 10px;">
+                        <li><strong>Fastest ROI:</strong> 1-2 weeks to production vs. 2-3 months for ML models</li>
+                        <li><strong>Low Risk:</strong> No training data required, no complex infrastructure</li>
+                        <li><strong>Immediate Value:</strong> Users get instant insights without learning complex filters</li>
+                        <li><strong>Azure Integration:</strong> Already using Azure, so OpenAI service fits seamlessly</li>
+                        <li><strong>Extensible:</strong> Can add anomaly detection and predictions later</li>
+                    </ul>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 6px;">
+                        <h4 style="color: #333; margin-bottom: 10px;">MVP Feature: "Ask Your Dashboard"</h4>
+                        <p style="margin-bottom: 10px;">Add a chat interface where users can ask:</p>
+                        <ul>
+                            <li>"Which sites failed last week?"</li>
+                            <li>"What's the average uptime this month?"</li>
+                            <li>"Generate a weekly status report"</li>
+                            <li>"Why did example.com go down on May 1st?"</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="implementation-steps" style="margin-top: 20px;">
+                    <h4>Phase 2 & 3 Roadmap (After NL Interface):</h4>
+                    <ol>
+                        <li><strong>Phase 2 (Month 2-3):</strong> Add anomaly detection using Isolation Forest for real-time alerts</li>
+                        <li><strong>Phase 3 (Month 4-6):</strong> Implement predictive forecasting with Prophet for proactive maintenance</li>
+                    </ol>
+                </div>
+            </section>
+            
+            <!-- Simplicity Assessment -->
+            <section id="simplicity">
+                <h2>⚙️ Simplicity & Feasibility</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; border: 2px solid #2196F3;">
+                        <h3 style="color: #1976D2; margin-top: 0;">✅ What Makes This Easy</h3>
+                        <ul>
+                            <li>You already have structured data</li>
+                            <li>Time-series monitoring is well-understood</li>
+                            <li>Already on Azure (easy AI service integration)</li>
+                            <li>Small data volume (fast processing)</li>
+                            <li>Clear success metrics (uptime, alerts)</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: #fff9e6; padding: 20px; border-radius: 8px; border: 2px solid #ffc107;">
+                        <h3 style="color: #856404; margin-top: 0;">⚠️ Potential Challenges</h3>
+                        <ul>
+                            <li>Need sufficient historical data (2+ months)</li>
+                            <li>Balancing alert sensitivity (avoid fatigue)</li>
+                            <li>API costs for LLM queries at scale</li>
+                            <li>Requires DevOps for model deployment</li>
+                            <li>Ongoing model monitoring & retraining</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 30px; padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">
+                    <h3 style="color: white;">🎯 Overall Simplicity Rating</h3>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <h4 style="margin: 5px 0; color: white;">Natural Language (OpenAI)</h4>
+                            <div class="meter-bar">
+                                <div class="meter-fill" style="width: 85%; background: #28a745;"></div>
+                            </div>
+                            <p style="margin-top: 5px; font-size: 0.9em;">85/100 - Very Simple</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <h4 style="margin: 5px 0; color: white;">Anomaly Detection (ML)</h4>
+                            <div class="meter-bar">
+                                <div class="meter-fill" style="width: 60%; background: #ffc107;"></div>
+                            </div>
+                            <p style="margin-top: 5px; font-size: 0.9em;">60/100 - Moderate</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <h4 style="margin: 5px 0; color: white;">Predictive Forecasting</h4>
+                            <div class="meter-bar">
+                                <div class="meter-fill" style="width: 50%; background: #ffc107;"></div>
+                            </div>
+                            <p style="margin-top: 5px; font-size: 0.9em;">50/100 - Moderate</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <h4 style="margin: 5px 0; color: white;">Root Cause Analysis</h4>
+                            <div class="meter-bar">
+                                <div class="meter-fill" style="width: 35%; background: #dc3545;"></div>
+                            </div>
+                            <p style="margin-top: 5px; font-size: 0.9em;">35/100 - Complex</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Summary -->
+            <section id="summary" style="margin-bottom: 0;">
+                <h2>📝 Executive Summary</h2>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px;">
+                    <h3 style="color: white; margin-top: 0;">The Bottom Line</h3>
+                    <p style="font-size: 1.1em; line-height: 1.8;">
+                        Your site status dashboard is <strong>highly suitable</strong> for AI integration. The structured time-series data you're already collecting is exactly what AI models need. Start with a <strong>natural language query interface</strong> using Azure OpenAI (1-2 weeks, low cost, high impact), then progressively add anomaly detection and predictive capabilities as you gather more data and validate ROI.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 25px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2em; margin-bottom: 5px;">⏱️</div>
+                            <strong>Time to MVP</strong>
+                            <div style="font-size: 1.3em; margin-top: 5px;">1-2 weeks</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2em; margin-bottom: 5px;">💵</div>
+                            <strong>Initial Cost</strong>
+                            <div style="font-size: 1.3em; margin-top: 5px;">$50-100/mo</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2em; margin-bottom: 5px;">📊</div>
+                            <strong>Complexity</strong>
+                            <div style="font-size: 1.3em; margin-top: 5px;">Low-Medium</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2em; margin-bottom: 5px;">🎯</div>
+                            <strong>Expected ROI</strong>
+                            <div style="font-size: 1.3em; margin-top: 5px;">High</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+        
+        <footer>
+            <p>Generated on May 9, 2026</p>
+            <p>Site Status Dashboard - AI Integration Analysis</p>
+        </footer>
+    </div>
+</body>
+</html>
