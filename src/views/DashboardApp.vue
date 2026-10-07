@@ -1,70 +1,128 @@
 <template>
   <div class="dashboard-wrapper">
-    <aside class="sidebar" :class="{ open: sidebarOpen }">
+    <!-- Mobile (<= 992px): tap-outside backdrop for the off-canvas sidebar drawer -->
+    <div
+      v-if="isMobileNav && sidebarOpen"
+      class="sidebar-backdrop"
+      aria-hidden="true"
+      @click="closeSidebar()"
+    ></div>
+
+    <aside
+      id="app-sidebar"
+      ref="sidebarRef"
+      class="sidebar"
+      :class="{ open: sidebarOpen }"
+      :role="isMobileNav && sidebarOpen ? 'dialog' : undefined"
+      :aria-modal="isMobileNav && sidebarOpen ? 'true' : undefined"
+      :aria-label="isMobileNav ? 'App navigation' : undefined"
+      @keydown="onSidebarKeydown"
+    >
       <div class="sidebar-brand">
         <div class="sidebar-brand-row">
           <Outpost13LogoMark :size="30" />
           <h1>Outpost13</h1>
+          <button
+            ref="sidebarCloseRef"
+            type="button"
+            class="sidebar-close-btn"
+            aria-label="Close navigation menu"
+            @click="closeSidebar()"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
         </div>
         <div class="sidebar-tagline">Your org monitoring</div>
       </div>
 
-      <nav>
+      <nav aria-label="App">
         <div class="nav-section">
           <div class="nav-section-title">Views</div>
-          <div
+          <button
+            type="button"
             class="nav-item"
             :class="{ active: activeTab === 'statuses' }"
             @click="openStatusesTab"
           >
             <i class="bi bi-list-check"></i>
             <span>My statuses</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             class="nav-item"
             :class="{ active: activeTab === 'dashboard' }"
             @click="goOverview"
           >
             <i class="bi bi-columns-gap"></i>
             <span>Dashboard</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             class="nav-item"
             :class="{ active: activeTab === 'urls' }"
             @click="goManage"
           >
             <i class="bi bi-link-45deg"></i>
             <span>URLs</span>
-          </div>
-          <div class="nav-item" @click="goPublicStatuses">
+          </button>
+          <button type="button" class="nav-item" @click="goPublicStatuses">
             <i class="bi bi-globe2"></i>
             <span>Public statuses</span>
-          </div>
+          </button>
         </div>
 
         <div class="nav-section">
           <div class="nav-section-title">Reports</div>
-          <div
+          <button
+            type="button"
             class="nav-item"
             :class="{ active: activeTab === 'charts' }"
             @click="goCharts"
           >
             <i class="bi bi-bar-chart-line"></i>
             <span>Charts</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             class="nav-item"
             :class="{ active: activeTab === 'history' }"
             @click="goHistory"
           >
             <i class="bi bi-clock-history"></i>
             <span>History</span>
-          </div>
+          </button>
+        </div>
+
+        <!-- Mobile drawer only: account actions (desktop keeps them in the header) -->
+        <div v-if="isClerkConfigured" class="nav-section nav-section-mobile">
+          <div class="nav-section-title">Account</div>
+          <button type="button" class="nav-item" @click="handleSignOut">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Sign out</span>
+          </button>
         </div>
       </nav>
     </aside>
 
     <main class="main-content">
+      <div class="mobile-topbar">
+        <button
+          ref="menuButtonRef"
+          type="button"
+          class="mobile-menu-btn"
+          aria-controls="app-sidebar"
+          :aria-expanded="sidebarOpen ? 'true' : 'false'"
+          aria-label="Open navigation menu"
+          @click="openSidebar"
+        >
+          <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+        <router-link to="/statuses" class="mobile-topbar-brand" aria-label="Outpost13 — My statuses">
+          <Outpost13LogoMark :size="24" />
+          <span>Outpost13</span>
+        </router-link>
+      </div>
+
       <div
         v-if="showAuthUnconfiguredBanner"
         class="alert alert-warning mb-3"
@@ -179,7 +237,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../composables/useApi'
 import StatsOverview from '../components/StatsOverview.vue'
@@ -194,6 +252,7 @@ import UserMenu from '../components/UserMenu.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import Outpost13LogoMark from '../components/Outpost13LogoMark.vue'
 import { isSuccessStatus as isSuccessRow } from '../utils/probeStatus'
+import { isClerkConfigured } from '../auth/clerkConfig.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -209,6 +268,103 @@ const isReloading = ref(false)
 const initialLoading = ref(true)
 const toasts = ref([])
 const urlManagerRef = ref(null)
+
+/* ---------- Mobile navigation drawer (sidebar is off-canvas at <= 992px) ---------- */
+const MOBILE_NAV_QUERY = '(max-width: 992px)'
+const isMobileNav = ref(false)
+const sidebarRef = ref(null)
+const sidebarCloseRef = ref(null)
+const menuButtonRef = ref(null)
+let mobileNavMql = null
+
+function setBodyScrollLock(locked) {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = locked ? 'hidden' : ''
+}
+
+function openSidebar() {
+  if (!isMobileNav.value) return
+  sidebarOpen.value = true
+}
+
+function closeSidebar({ restoreFocus = true } = {}) {
+  if (!sidebarOpen.value) return
+  sidebarOpen.value = false
+  if (restoreFocus) nextTick(() => menuButtonRef.value?.focus())
+}
+
+function sidebarFocusables() {
+  const root = sidebarRef.value
+  if (!root) return []
+  return Array.from(
+    root.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')
+  ).filter((el) => el.offsetParent !== null)
+}
+
+function onSidebarKeydown(event) {
+  if (!isMobileNav.value || !sidebarOpen.value || event.key !== 'Tab') return
+  // Keep keyboard focus inside the open drawer.
+  const items = sidebarFocusables()
+  if (items.length === 0) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function onDocumentKeydown(event) {
+  if (event.key === 'Escape' && sidebarOpen.value) {
+    event.preventDefault()
+    closeSidebar()
+  }
+}
+
+function onMobileNavChange(e) {
+  isMobileNav.value = e.matches
+  // Leaving the mobile breakpoint: drop drawer state so desktop is unaffected.
+  if (!e.matches && sidebarOpen.value) closeSidebar({ restoreFocus: false })
+}
+
+watch(sidebarOpen, (open) => {
+  setBodyScrollLock(open && isMobileNav.value)
+  if (open) {
+    document.addEventListener('keydown', onDocumentKeydown)
+    nextTick(() => sidebarCloseRef.value?.focus())
+  } else {
+    document.removeEventListener('keydown', onDocumentKeydown)
+  }
+})
+
+async function handleSignOut() {
+  closeSidebar({ restoreFocus: false })
+  try {
+    if (window.Clerk?.signOut) {
+      await window.Clerk.signOut({ redirectUrl: '/welcome' })
+      return
+    }
+  } catch {
+    /* fall through to marketing page */
+  }
+  router.push('/welcome')
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined' || !window.matchMedia) return
+  mobileNavMql = window.matchMedia(MOBILE_NAV_QUERY)
+  isMobileNav.value = mobileNavMql.matches
+  mobileNavMql.addEventListener('change', onMobileNavChange)
+})
+
+onBeforeUnmount(() => {
+  mobileNavMql?.removeEventListener('change', onMobileNavChange)
+  document.removeEventListener('keydown', onDocumentKeydown)
+  setBodyScrollLock(false)
+})
 
 function onDomainHeadersUpdated(detail) {
   urlManagerRef.value?.loadDomainProfiles?.()
@@ -279,6 +435,8 @@ watch(
   () => route.path,
   () => {
     syncTabFromRoute()
+    // Navigating from the mobile drawer closes it.
+    closeSidebar({ restoreFocus: false })
   },
   { immediate: true }
 )

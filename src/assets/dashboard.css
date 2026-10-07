@@ -224,6 +224,23 @@ body::before {
   color: var(--text-main);
 }
 
+/* nav-items are <button>s for keyboard access; neutralise UA/Bootstrap button styles
+   so they look exactly like the original div nav-items. */
+button.nav-item {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  text-align: left;
+  line-height: inherit;
+  appearance: none;
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 1px;
+}
+
 .nav-item.active {
   background: rgba(255, 51, 102, 0.08);
   color: var(--text-accent);
@@ -234,6 +251,14 @@ body::before {
   font-size: 1rem;
   width: 18px;
   opacity: 0.9;
+}
+
+/* ---------- Mobile app navigation (hidden on desktop) ---------- */
+.mobile-topbar,
+.sidebar-close-btn,
+.sidebar-backdrop,
+.nav-section-mobile {
+  display: none;
 }
 
 .main-content {
@@ -800,17 +825,112 @@ body::before {
 
 @media (max-width: 992px) {
   .sidebar {
+    width: min(var(--sidebar-width), 85vw);
+    height: 100dvh;
     transform: translateX(-100%);
     z-index: 1000;
-    transition: transform 0.2s ease;
+    /* hidden (not just off-screen) when closed, so it is not tabbable / announced */
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
   }
 
   .sidebar.open {
     transform: translateX(0);
+    visibility: visible;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+    transition: transform 0.2s ease, visibility 0s;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .sidebar-close-btn:hover,
+  .sidebar-close-btn:focus-visible {
+    color: var(--text-main);
+    background: var(--bg-surface-hover);
+  }
+
+  .nav-section-mobile {
+    display: block;
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    /* bleed to the edges of .main-content (no negative top margin: sticky would clamp it) */
+    margin: 0 -2rem 1rem;
+    padding: 0.65rem 2rem;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    font-size: 1.35rem;
+    cursor: pointer;
+  }
+
+  .mobile-menu-btn:hover,
+  .mobile-menu-btn:focus-visible {
+    border-color: var(--text-accent);
+    color: var(--text-accent);
+  }
+
+  .mobile-menu-btn:focus-visible,
+  .sidebar-close-btn:focus-visible {
+    outline: 2px solid var(--text-accent);
+    outline-offset: 2px;
+  }
+
+  .mobile-topbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-main);
+    text-decoration: none;
   }
 
   .main-content {
     margin-left: 0;
+    /* the sticky mobile top bar supplies the top spacing */
+    padding-top: 0;
   }
 
   .charts-grid {
