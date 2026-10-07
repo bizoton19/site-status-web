@@ -168,8 +168,20 @@ export function generateUrlName(url) {
 }
 
 /**
+ * Group label from a URL record. Prefers `group`, then legacy `category`.
+ * @param {object} record
+ * @returns {string}
+ */
+export function readGroup(record) {
+  if (!record || typeof record !== 'object') return ''
+  const raw = record.group ?? record.Group ?? record.category ?? record.Category
+  return raw == null ? '' : String(raw).trim()
+}
+
+/**
  * Parse CSV content for URL import.
- * Expected format: name,url (header row required)
+ * Expected columns: name, url, group. A legacy `category` header is accepted
+ * when `group` is missing or blank.
  * @param {string} csvContent - Raw CSV text
  * @returns {{ rows: object[], errors: string[] }}
  */
@@ -186,6 +198,8 @@ export function parseCsvUrls(csvContent) {
   const header = lines[0].toLowerCase().split(',').map(h => h.trim())
   const urlIndex = header.indexOf('url')
   const nameIndex = header.indexOf('name')
+  const groupIndex = header.indexOf('group')
+  const categoryIndex = header.indexOf('category')
   
   if (urlIndex === -1) {
     return { rows: [], errors: ['CSV must have a "url" column'] }
@@ -196,9 +210,17 @@ export function parseCsvUrls(csvContent) {
     const cols = lines[i].split(',').map(c => c.trim())
     const url = cols[urlIndex] || ''
     const name = nameIndex !== -1 ? cols[nameIndex] : ''
+    const fromGroup = groupIndex !== -1 ? (cols[groupIndex] || '') : ''
+    const fromCategory = categoryIndex !== -1 ? (cols[categoryIndex] || '') : ''
+    const group = fromGroup.trim() || fromCategory.trim()
     
     if (!url) {
       errors.push(`Row ${i + 1}: Missing URL`)
+      continue
+    }
+
+    if (!group) {
+      errors.push(`Row ${i + 1}: Missing group`)
       continue
     }
     
@@ -210,7 +232,8 @@ export function parseCsvUrls(csvContent) {
     
     rows.push({
       urlName: name || generateUrlName(url),
-      url: validation.url
+      url: validation.url,
+      group
     })
   }
   

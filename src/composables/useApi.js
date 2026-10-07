@@ -201,10 +201,15 @@ function buildUrlPayload(urlData) {
     headers[key] = value
   }
 
+  const group = String(urlData.group ?? urlData.category ?? '').trim()
+
   return {
     urlName: urlData.urlName,
     url: urlData.url,
-    category: urlData.category || 'General',
+    group,
+    // Same value under the legacy field so the current persister keeps the label
+    // until it reads `group`.
+    category: group,
     visibility: urlData.visibility === 'public' ? 'public' : 'private',
     headers
   }
@@ -243,7 +248,8 @@ export function useApi() {
 
   /**
    * Public landing directory — anonymous, public endpoints only.
-   * @param {{ q?: string, category?: string }} [filters]
+   * Sends `group` and mirrors it as `category` so an older reader can still filter.
+   * @param {{ q?: string, group?: string, category?: string }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
     loading.value = true
@@ -252,7 +258,11 @@ export function useApi() {
     try {
       const params = {}
       if (filters.q) params.q = filters.q
-      if (filters.category) params.category = filters.category
+      const group = String(filters.group ?? filters.category ?? '').trim()
+      if (group) {
+        params.group = group
+        params.category = group
+      }
 
       const response = await fetch(apiUrl(getPublicStatusesFunctionName(), params), {
         method: 'GET',
