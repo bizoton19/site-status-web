@@ -2,6 +2,8 @@
 
 Public `POST /api/contact` for the marketing form. The Vue app calls `{VITE_API_BASE_URL}/{VITE_CONTACT_FUNCTION}` (default `contact`) with the same `?code=` key as the other Azure Functions routes.
 
+> **Production:** outpost13.app is served by a C# port of this function (`contact`, `Contact.cs`) inside the .NET isolated Function App in fox2-watchtower (`wt-health-dev-ok2`, behind `https://api.outpost13.app/api`). This Node folder is kept as the reference implementation and test suite for the contract below; it is not deployed. The C# port additionally returns `400 invalid_request` for an unparseable JSON body and `503 unavailable` when `TURNSTILE_SECRET_KEY` or `TURNSTILE_HOSTNAMES` is missing on the Function App.
+
 This folder is a Node.js Azure Functions v4 app. fox2-watchtower is not in this repository. Publish this app only to a **Node** Function App. Do not publish it into a .NET-only Function App (one app cannot host both runtimes). If the live poller app must stay .NET, add a `contact` HTTP function there that follows the contract below.
 
 ## Contract
