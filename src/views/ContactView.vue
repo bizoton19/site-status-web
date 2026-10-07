@@ -87,7 +87,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import MarketingShell from '../components/MarketingShell.vue'
 import { useApi } from '../composables/useApi.js'
 
-const TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+const TURNSTILE_ONLOAD = '__watchtowerTurnstileOnload'
 const CONTACT_ACTION = 'contact'
 
 const ERROR_COPY = {
@@ -113,23 +113,23 @@ const formError = ref('')
 let turnstileScriptPromise = null
 
 function loadTurnstile() {
-  if (window.turnstile) return Promise.resolve(window.turnstile)
+  if (window.turnstile?.render) return Promise.resolve(window.turnstile)
   if (turnstileScriptPromise) return turnstileScriptPromise
 
   turnstileScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-turnstile="contact"]')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.turnstile), { once: true })
-      existing.addEventListener('error', () => reject(new Error('turnstile')), { once: true })
-      return
+    window[TURNSTILE_ONLOAD] = () => {
+      if (window.turnstile?.render) resolve(window.turnstile)
+      else reject(new Error('turnstile'))
     }
 
+    const existing = document.querySelector('script[data-turnstile="contact"]')
+    if (existing) return
+
     const script = document.createElement('script')
-    script.src = TURNSTILE_SRC
+    script.src = `https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=${TURNSTILE_ONLOAD}`
     script.async = true
     script.defer = true
     script.dataset.turnstile = 'contact'
-    script.onload = () => resolve(window.turnstile)
     script.onerror = () => reject(new Error('turnstile'))
     document.head.appendChild(script)
   })
@@ -147,14 +147,10 @@ function resetWidget() {
 async function renderWidget() {
   if (!siteKey || !turnstileHost.value) return
   const turnstile = await loadTurnstile()
-  if (!turnstile || !turnstileHost.value) {
+  if (!turnstile?.render || !turnstileHost.value) {
     widgetError.value = true
     return
   }
-  if (typeof turnstile.ready === 'function') {
-    await new Promise((resolve) => turnstile.ready(resolve))
-  }
-  if (!turnstileHost.value) return
 
   const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
   widgetId.value = turnstile.render(turnstileHost.value, {
@@ -185,6 +181,7 @@ onBeforeUnmount(() => {
   if (widgetId.value != null && window.turnstile) {
     window.turnstile.remove(widgetId.value)
   }
+  delete window[TURNSTILE_ONLOAD]
 })
 
 async function onSubmit() {
