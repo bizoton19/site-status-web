@@ -6,117 +6,62 @@
         <h2>{{ title }}</h2>
         <p class="directory-lead">{{ lead }}</p>
       </div>
-      <div v-if="showFilters" class="directory-controls">
-        <input
-          v-model="directoryQuery"
-          type="search"
-          class="form-control directory-search"
-          placeholder="Search URL, domain…"
-          aria-label="Search public endpoints"
-          @keyup.enter="onSearch"
-        >
-        <select
-          v-model="directoryGroup"
-          class="form-control directory-category"
-          aria-label="Filter by group"
-          @change="onFilterChange"
-        >
-          <option value="">All groups</option>
-          <option v-for="name in groupOptions" :key="name" :value="name">{{ name }}</option>
-        </select>
-        <button type="button" class="btn btn-secondary" @click="onSearch">Search</button>
-      </div>
+      <p v-if="!directoryLoading && directoryItems.length" class="directory-summary">
+        {{ pageTotals.urls }} URL{{ pageTotals.urls === 1 ? '' : 's' }}
+        · {{ pageTotals.up }} up
+        · {{ pageTotals.down }} down
+      </p>
     </div>
 
-    <p v-if="directoryLoading" class="directory-empty">Loading public endpoints…</p>
-    <p v-else-if="directoryGroups.length === 0" class="directory-empty">
-      {{ emptyMessage }}
+    <StatusBoard
+      v-model:group="directoryGroup"
+      v-model:search="directoryQuery"
+      :items="directoryItems"
+      :storage-key="showFilters ? 'outpost13.statusView.public' : null"
+      default-desktop-view="table"
+      :locked-view="showFilters ? null : 'table'"
+      default-sort-key="group"
+      :show-toolbar="showFilters"
+      :client-search="false"
+      search-placeholder="Search URL, domain…"
+      :group-options="groupOptions"
+      :show-domain="true"
+      :loading="directoryLoading"
+      loading-message="Loading public endpoints…"
+      :empty-message="emptyMessage"
+      id-prefix="public-status"
+      @search-submit="onSearch"
+    >
+      <template #item-actions="{ item }">
+        <template v-if="needsDetails(item.status)">
+          <Show v-if="isClerkConfigured" when="signed-in">
+            <button type="button" class="details-link" @click="goToApp">
+              See details
+            </button>
+          </Show>
+          <Show v-if="isClerkConfigured" when="signed-out">
+            <SignInButton mode="redirect" force-redirect-url="/statuses">
+              <button type="button" class="details-link">
+                See details
+              </button>
+            </SignInButton>
+          </Show>
+          <button
+            v-if="!isClerkConfigured"
+            type="button"
+            class="details-link"
+            @click="goToApp"
+          >
+            See details
+          </button>
+        </template>
+      </template>
+    </StatusBoard>
+
+    <p v-if="!directoryLoading && pageTotals.urls > directoryItems.length" class="directory-truncated">
+      Showing {{ directoryItems.length }} of {{ pageTotals.urls }} URLs on this page
+      (per-owner cap). Refine search to narrow results.
     </p>
-
-    <div v-else class="directory-groups">
-      <article
-        v-for="group in directoryGroups"
-        :key="group.groupKey"
-        class="directory-group"
-      >
-        <header class="directory-group-header" aria-label="Owner group">
-          <span>
-            {{ group.urlCount }} URL{{ group.urlCount === 1 ? '' : 's' }}
-            · {{ group.upCount }} up
-            · {{ group.downCount }} down
-          </span>
-        </header>
-        <div class="directory-table-wrap">
-          <table class="directory-table">
-            <thead>
-              <tr>
-                <th>Endpoint</th>
-                <th>Domain</th>
-                <th>Group</th>
-                <th>Status</th>
-                <th>Last checked</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="item in group.items"
-                :key="`${item.domain}-${item.url}`"
-              >
-                <td>
-                  <a
-                    class="directory-url"
-                    :href="item.url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >{{ item.url }}</a>
-                </td>
-                <td>{{ item.domain || '—' }}</td>
-                <td>
-                  <span class="cat-chip">{{ item.group || '—' }}</span>
-                </td>
-                <td>
-                  <div class="status-cell">
-                    <span class="status-pill" :class="statusClass(item.status)">
-                      {{ formatStatus(item.status) }}
-                    </span>
-                    <template v-if="needsDetails(item.status)">
-                      <Show v-if="isClerkConfigured" when="signed-in">
-                        <button type="button" class="details-link" @click="goToApp">
-                          See details
-                        </button>
-                      </Show>
-                      <Show v-if="isClerkConfigured" when="signed-out">
-                        <SignInButton mode="redirect" force-redirect-url="/statuses">
-                          <button type="button" class="details-link">
-                            See details
-                          </button>
-                        </SignInButton>
-                      </Show>
-                      <button
-                        v-if="!isClerkConfigured"
-                        type="button"
-                        class="details-link"
-                        @click="goToApp"
-                      >
-                        See details
-                      </button>
-                    </template>
-                  </div>
-                </td>
-                <td>{{ formatChecked(item.date) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p
-          v-if="group.urlCount > group.items.length"
-          class="directory-truncated"
-        >
-          Showing {{ group.items.length }} of {{ group.urlCount }} in this group
-          (page cap). Refine search to narrow results.
-        </p>
-      </article>
-    </div>
 
     <nav
       v-if="showPagination && totalPages > 1"
@@ -155,15 +100,12 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import StatusBoard from './StatusBoard.vue'
 import { useRouter } from 'vue-router'
 import { Show, SignInButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 import { useApi } from '../composables/useApi.js'
-import {
-  formatPublicStatusLabel,
-  isSuccessStatus,
-  publicStatusClass
-} from '../utils/probeStatus.js'
+import { isSuccessStatus } from '../utils/probeStatus.js'
 
 const props = defineProps({
   title: { type: String, default: 'Live endpoints' },
@@ -272,38 +214,45 @@ function goToApp() {
   router.push('/statuses')
 }
 
-function isUp(status) {
-  return isSuccessStatus(status)
-}
-
-function isPending(status) {
-  const s = String(status || '').trim().toLowerCase()
-  return !s || s === 'pending'
-}
-
 function needsDetails(status) {
-  if (isUp(status) || isPending(status)) return false
-  return true
+  if (isSuccessStatus(status)) return false
+  const s = String(status || '').trim().toLowerCase()
+  return !!s && s !== 'pending'
 }
 
-function formatStatus(status) {
-  return formatPublicStatusLabel(status)
-}
+/** Flatten the owner-group page into normalized items for the shared StatusBoard. */
+const directoryItems = computed(() =>
+  directoryGroups.value.flatMap((g, gi) =>
+    (g.items || []).map((item, i) => ({
+      key: `${g.groupKey ?? gi}-${item.domain}-${item.url}-${i}`,
+      urlName: item.urlName,
+      url: item.url,
+      domain: item.domain,
+      group: item.group,
+      status: item.status,
+      description: item.description,
+      date: item.date,
+      durationMs: null,
+    }))
+  )
+)
 
-function statusClass(status) {
-  return publicStatusClass(status)
-}
-
-function formatChecked(date) {
-  if (!date) return '—'
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString()
-}
+const pageTotals = computed(() =>
+  directoryGroups.value.reduce(
+    (acc, g) => ({
+      urls: acc.urls + (g.urlCount ?? (g.items || []).length),
+      up: acc.up + (g.upCount ?? 0),
+      down: acc.down + (g.downCount ?? 0),
+    }),
+    { urls: 0, up: 0, down: 0 }
+  )
+)
 
 onMounted(() => {
   loadDirectory()
 })
+
+watch(directoryGroup, () => onFilterChange())
 
 watch(
   () => [props.maxUrls, props.pageSize],
@@ -353,132 +302,6 @@ watch(
   color: var(--text-muted);
 }
 
-.directory-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.directory-search {
-  min-width: min(280px, 70vw);
-}
-
-.directory-category {
-  min-width: 160px;
-}
-
-.directory-empty {
-  color: var(--text-muted);
-  border: 1px dashed var(--border-color);
-  border-radius: 14px;
-  padding: 1.25rem;
-  margin: 0;
-}
-
-.directory-groups {
-  display: grid;
-  gap: 1rem;
-}
-
-.directory-group {
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
-    var(--bg-panel);
-  overflow: hidden;
-}
-
-.directory-group-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  min-height: 2.6rem;
-}
-
-.directory-group-header span {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.directory-table-wrap {
-  overflow-x: auto;
-}
-
-.directory-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.directory-table th,
-.directory-table td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-  vertical-align: top;
-}
-
-.directory-table th {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.directory-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.directory-url {
-  display: block;
-  color: var(--text-main);
-  font-size: 0.88rem;
-  word-break: break-all;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.2rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-}
-
-.status-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-}
-
-.status-pill.is-up {
-  color: var(--color-success);
-  border-color: rgba(74, 222, 128, 0.45);
-}
-
-.status-pill.is-down {
-  color: var(--color-danger);
-  border-color: rgba(239, 68, 68, 0.45);
-}
-
-.status-pill.is-degraded {
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.45);
-}
-
-.status-pill.is-pending {
-  color: var(--text-muted);
-}
-
 .details-link {
   border: 0;
   padding: 0;
@@ -496,17 +319,16 @@ watch(
   color: var(--text-main);
 }
 
-.cat-chip {
+.directory-summary {
+  margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
 .directory-truncated {
-  margin: 0;
-  padding: 0.55rem 1rem 0.85rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
   color: var(--text-muted);
   font-size: 0.78rem;
 }
@@ -532,17 +354,5 @@ watch(
   display: flex;
   justify-content: center;
   margin-top: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  .directory-controls {
-    width: 100%;
-  }
-
-  .directory-search,
-  .directory-category {
-    width: 100%;
-    min-width: 0;
-  }
 }
 </style>

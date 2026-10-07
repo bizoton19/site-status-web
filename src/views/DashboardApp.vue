@@ -191,7 +191,22 @@
             View my statuses
           </button>
         </div>
-        <StatusGrid :statuses="statuses" :limit="6" result-filter="all" :show-search="false" />
+        <div class="dashboard-card">
+          <div class="dashboard-card-header">
+            <h3 class="dashboard-card-title">Endpoints</h3>
+          </div>
+          <div class="dashboard-card-body">
+            <StatusBoard
+              :items="statuses"
+              locked-view="cards"
+              :limit="6"
+              :show-toolbar="false"
+              :is-item-clickable="needsAttention"
+              empty-message="Configure monitored URLs or run a poll to populate results."
+              @select="openProbeDetails"
+            />
+          </div>
+        </div>
       </div>
 
       <div v-else-if="activeTab === 'statuses'" class="fade-in">
@@ -202,7 +217,23 @@
           </button>
         </div>
         <StatsOverview :statuses="statuses" @navigate-statuses="onStatNavigate" />
-        <StatusGrid :statuses="statuses" :result-filter="statusesFilter" />
+        <div class="dashboard-card">
+          <div class="dashboard-card-header">
+            <h3 class="dashboard-card-title">Endpoints</h3>
+          </div>
+          <div class="dashboard-card-body">
+            <StatusBoard
+              v-model:group="statusesGroup"
+              :items="filteredStatuses"
+              storage-key="outpost13.statusView.app"
+              default-desktop-view="table"
+              id-prefix="app-status"
+              :is-item-clickable="needsAttention"
+              :empty-message="statusesEmptyMessage"
+              @select="openProbeDetails"
+            />
+          </div>
+        </div>
       </div>
 
       <div v-else-if="activeTab === 'urls'" class="fade-in manage-stack">
@@ -223,6 +254,8 @@
       </div>
     </main>
 
+    <ProbeDetailsModal :status="probeDetail" @close="probeDetail = null" />
+
     <div class="toast-container" aria-live="polite">
       <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
         <i :class="toastIconClass(toast.type)" aria-hidden="true"></i>
@@ -241,7 +274,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../composables/useApi'
 import StatsOverview from '../components/StatsOverview.vue'
-import StatusGrid from '../components/StatusGrid.vue'
+import StatusBoard from '../components/StatusBoard.vue'
+import ProbeDetailsModal from '../components/ProbeDetailsModal.vue'
 import UrlManager from '../components/UrlManager.vue'
 import DomainHeadersPanel from '../components/DomainHeadersPanel.vue'
 import UptimeChart from '../components/UptimeChart.vue'
@@ -251,7 +285,12 @@ import HistoryLog from '../components/HistoryLog.vue'
 import UserMenu from '../components/UserMenu.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import Outpost13LogoMark from '../components/Outpost13LogoMark.vue'
-import { isSuccessStatus as isSuccessRow } from '../utils/probeStatus'
+import {
+  isBlockedStatus,
+  isDownStatus,
+  isSuccessStatus as isSuccessRow,
+  needsAttention
+} from '../utils/probeStatus'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
 
 const route = useRoute()
@@ -260,6 +299,28 @@ const { fetchStatuses, fetchStatusStats, submitPollRequest } = useApi()
 
 const activeTab = ref('statuses')
 const statusesFilter = ref('all')
+const statusesGroup = ref('')
+const probeDetail = ref(null)
+
+/** Stat-card filter (online / failed / blocked) applied before the shared board. */
+const filteredStatuses = computed(() => {
+  if (statusesFilter.value === 'online') return statuses.value.filter((s) => isSuccessRow(s))
+  if (statusesFilter.value === 'blocked') return statuses.value.filter((s) => isBlockedStatus(s))
+  if (statusesFilter.value === 'offline') return statuses.value.filter((s) => isDownStatus(s))
+  return statuses.value
+})
+
+const statusesEmptyMessage = computed(() => {
+  if (statuses.value.length === 0) return 'Configure monitored URLs or run a poll to populate results.'
+  if (statusesFilter.value === 'offline') return 'No failed endpoints in the latest poll.'
+  if (statusesFilter.value === 'blocked') return 'No blocked endpoints in the latest poll.'
+  if (statusesFilter.value === 'online') return 'No online endpoints match this view.'
+  return 'No endpoints match the current group or search.'
+})
+
+function openProbeDetails(item) {
+  probeDetail.value = item
+}
 const sidebarOpen = ref(false)
 const statuses = ref([])
 const statsRaw = ref([])
@@ -495,6 +556,8 @@ async function loadStatuses() {
   statuses.value = data
     .map((item) => ({
       rowKey: item.RowKey ?? item.rowKey,
+      key: item.RowKey ?? item.rowKey ?? item.Url ?? item.url,
+      group: item.group ?? item.Group ?? item.Category ?? item.category ?? '',
       urlName: item.UrlName ?? item.urlName,
       url: item.Url ?? item.url,
       description: item.Description ?? item.description,
