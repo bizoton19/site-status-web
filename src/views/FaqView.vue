@@ -10,6 +10,7 @@
       <nav class="home-nav-links" aria-label="Primary">
         <router-link class="home-nav-link" to="/allstatuses">Public statuses</router-link>
         <router-link class="home-nav-link" to="/faq">FAQ</router-link>
+        <router-link class="home-nav-link" to="/contact">Pricing</router-link>
       </nav>
       <div class="home-nav-actions">
         <ThemeToggle />
@@ -88,9 +89,9 @@ const faqs = [
     ]
   },
   {
-    q: 'What is included on the free tier?',
+    q: 'How does pricing work?',
     a: [
-      'Free accounts can monitor up to 50 URLs and use up to 1 million polls with no credit card. After that, usage is priced per million polls — not a stack of enterprise SKUs.'
+      'There is no public price list. Use the Pricing page to tell us what you want to monitor and we will reply by email.'
     ]
   },
   {

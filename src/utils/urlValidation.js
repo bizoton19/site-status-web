@@ -166,7 +166,7 @@ function isCsvHeaderLine(line) {
 }
 
 /**
- * True when a line looks like name,https://...,Category (3+ fields, one HTTPS URL).
+ * True when a line looks like name,https://...,group (3+ fields, one HTTPS URL).
  * @param {string} line
  * @returns {boolean}
  */
@@ -190,32 +190,41 @@ function getContentLines(text) {
 
 /**
  * Build a validated import row from CSV field cells.
+ * Group comes from the `group` column, falling back to legacy `category`.
  * @param {string[]} cols
- * @param {{ nameIndex: number, urlIndex: number, categoryIndex: number }} indexes
+ * @param {{ nameIndex: number, urlIndex: number, groupIndex: number, categoryIndex: number }} indexes
  * @param {number} lineNumber
- * @returns {{ row?: { urlName: string, url: string, category?: string }, error?: string }}
+ * @param {{ requireGroup?: boolean }} [options]
+ * @returns {{ row?: { urlName: string, url: string, group?: string }, error?: string }}
  */
-function rowFromCsvCols(cols, indexes, lineNumber) {
-  const { nameIndex, urlIndex, categoryIndex } = indexes
+function rowFromCsvCols(cols, indexes, lineNumber, options = {}) {
+  const { nameIndex, urlIndex, groupIndex = -1, categoryIndex = -1 } = indexes
+  const requireGroup = options.requireGroup !== false
   const url = (urlIndex >= 0 ? cols[urlIndex] : '') || ''
   const name = nameIndex >= 0 ? (cols[nameIndex] || '') : ''
-  const category = categoryIndex >= 0 ? (cols[categoryIndex] || '').trim() : ''
+  const fromGroup = groupIndex >= 0 ? (cols[groupIndex] || '').trim() : ''
+  const fromCategory = categoryIndex >= 0 ? (cols[categoryIndex] || '').trim() : ''
+  const group = fromGroup || fromCategory
 
   if (!url) {
-    return { error: `Line ${lineNumber}: Missing URL` }
+    return { error: `Row ${lineNumber}: Missing URL` }
+  }
+
+  if (requireGroup && !group) {
+    return { error: `Row ${lineNumber}: Missing group` }
   }
 
   const validation = validateUrl(url)
   if (!validation.valid) {
-    return { error: `Line ${lineNumber}: ${validation.error || 'Invalid URL'}` }
+    return { error: `Row ${lineNumber}: ${validation.error || 'Invalid URL'}` }
   }
 
   const row = {
     urlName: name || generateUrlName(validation.url),
     url: validation.url
   }
-  if (category) {
-    row.category = category
+  if (group) {
+    row.group = group
   }
   return { row }
 }
@@ -228,9 +237,9 @@ function rowFromCsvCols(cols, indexes, lineNumber) {
  *   name, https://example.com/health
  *   name\thttps://example.com/health
  * Skips blank lines and # comments.
- * For `name,url,category` CSV (header or headerless), use parseUrlImport instead.
+ * For `name,url,group` CSV (header or headerless), use parseUrlImport instead.
  * @param {string} text
- * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
+ * @returns {{ rows: { urlName: string, url: string, group?: string }[], errors: string[] }}
  */
 export function parsePasteInput(text) {
   const rows = []
@@ -243,7 +252,7 @@ export function parsePasteInput(text) {
 
     let urlName = ''
     let urlPart = line
-    let category = ''
+    let group = ''
 
     if (line.includes('|')) {
       const [left, ...rest] = line.split('|')
@@ -256,7 +265,7 @@ export function parsePasteInput(text) {
         urlName = parts[0] && !looksLikeHttpsUrl(parts[0]) ? parts[0] : ''
         urlPart = parts[urlIndex] || ''
         const afterUrl = parts.slice(urlIndex + 1).filter(Boolean)
-        category = afterUrl[0] || ''
+        group = afterUrl[0] || ''
         if (!urlName && parts[0] !== urlPart) {
           urlName = parts[0] || ''
         }
@@ -267,13 +276,13 @@ export function parsePasteInput(text) {
       }
     } else if (line.includes(',') && !line.startsWith('http')) {
       const cols = splitCsvFields(line)
-      // Avoid gluing category onto URL when 3+ CSV fields are present
+      // Avoid gluing group onto URL when 3+ CSV fields are present
       if (cols.length >= 3 && cols.some(looksLikeHttpsUrl)) {
         const urlIndex = cols.findIndex(looksLikeHttpsUrl)
         const nameIndex = urlIndex === 0 ? -1 : 0
         urlName = nameIndex >= 0 ? cols[nameIndex] : ''
         urlPart = cols[urlIndex] || ''
-        category = (cols[urlIndex + 1] || '').trim()
+        group = (cols[urlIndex + 1] || '').trim()
       } else {
         const comma = line.indexOf(',')
         urlName = line.slice(0, comma).trim()
@@ -296,8 +305,8 @@ export function parsePasteInput(text) {
       urlName: urlName || generateUrlName(validation.url),
       url: validation.url
     }
-    if (category) {
-      row.category = category
+    if (group) {
+      row.group = group
     }
     rows.push(row)
   })
@@ -325,13 +334,26 @@ export function generateUrlName(url) {
 }
 
 /**
+ * Group label from a URL record. Prefers `group`, then legacy `category`.
+ * @param {object} record
+ * @returns {string}
+ */
+export function readGroup(record) {
+  if (!record || typeof record !== 'object') return ''
+  const raw = record.group ?? record.Group ?? record.category ?? record.Category
+  return raw == null ? '' : String(raw).trim()
+}
+
+/**
  * Parse CSV content for URL import.
- * Columns: name, url, category (category optional).
- * Header row with a "url" column is detected automatically, or pass { hasHeader: false }
- * to treat rows as name,url,category (URL column auto-detected when needed).
+ * Columns: name, url, group. A legacy `category` header is accepted when `group`
+ * is missing or blank. Header row with a "url" column is detected automatically, or
+ * pass { hasHeader: false } to treat rows as name,url,group (URL column auto-detected).
+ * Rows without a group are rejected unless { requireGroup: false } (the Paste list UI
+ * then applies its default group).
  * @param {string} csvContent - Raw CSV text
- * @param {{ hasHeader?: boolean }} [options]
- * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
+ * @param {{ hasHeader?: boolean, requireGroup?: boolean }} [options]
+ * @returns {{ rows: { urlName: string, url: string, group?: string }[], errors: string[] }}
  */
 export function parseCsvUrls(csvContent, options = {}) {
   const errors = []
@@ -349,33 +371,40 @@ export function parseCsvUrls(csvContent, options = {}) {
 
   let nameIndex = 0
   let urlIndex = 1
-  let categoryIndex = 2
+  let groupIndex = 2
+  let categoryIndex = -1
   let dataStart = 0
 
   if (hasHeader) {
     const header = splitCsvFields(content[0].line).map((h) => h.toLowerCase())
     urlIndex = header.indexOf('url')
     nameIndex = header.indexOf('name')
+    groupIndex = header.indexOf('group')
     categoryIndex = header.indexOf('category')
     if (urlIndex === -1) {
       return { rows: [], errors: ['CSV must have a "url" column'] }
     }
     dataStart = 1
   } else {
-    // Headerless: prefer name,url,category; otherwise find the HTTPS column
+    // Headerless: prefer name,url,group; otherwise find the HTTPS column
     const sample = splitCsvFields(content[0].line)
     const detectedUrl = sample.findIndex(looksLikeHttpsUrl)
     if (detectedUrl >= 0) {
       urlIndex = detectedUrl
       nameIndex = detectedUrl === 0 ? -1 : 0
-      categoryIndex = detectedUrl + 1 < sample.length ? detectedUrl + 1 : -1
+      groupIndex = detectedUrl + 1 < sample.length ? detectedUrl + 1 : -1
     }
   }
 
   for (let i = dataStart; i < content.length; i++) {
     const { line, lineNumber } = content[i]
     const cols = splitCsvFields(line)
-    const result = rowFromCsvCols(cols, { nameIndex, urlIndex, categoryIndex }, lineNumber)
+    const result = rowFromCsvCols(
+      cols,
+      { nameIndex, urlIndex, groupIndex, categoryIndex },
+      lineNumber,
+      { requireGroup: options.requireGroup }
+    )
     if (result.error) {
       errors.push(result.error)
       continue
@@ -388,12 +417,13 @@ export function parseCsvUrls(csvContent, options = {}) {
 
 /**
  * Smart import parser for Paste list / CSV paste.
- * - CSV header with a `url` column → CSV parser (name, url, category)
- * - Headerless rows like `name,https://...,Category` → CSV without header
+ * - CSV header with a `url` column → CSV parser (name, url, group; legacy category ok)
+ * - Headerless rows like `name,https://...,group` → CSV without header
  * - Otherwise one-URL-per-line / `name | url` paste behavior
- * Never leaves a category suffix on the URL string.
+ * Never leaves a group suffix on the URL string. Rows may omit group; the caller
+ * applies its default group.
  * @param {string} text
- * @returns {{ rows: { urlName: string, url: string, category?: string }[], errors: string[] }}
+ * @returns {{ rows: { urlName: string, url: string, group?: string }[], errors: string[] }}
  */
 export function parseUrlImport(text) {
   const content = getContentLines(text)
@@ -402,12 +432,12 @@ export function parseUrlImport(text) {
   }
 
   if (isCsvHeaderLine(content[0].line)) {
-    return parseCsvUrls(text, { hasHeader: true })
+    return parseCsvUrls(text, { hasHeader: true, requireGroup: false })
   }
 
   const csvLikeCount = content.filter(({ line }) => looksLikeCsvDataRow(line)).length
   if (csvLikeCount > 0 && csvLikeCount >= Math.ceil(content.length * 0.5)) {
-    return parseCsvUrls(text, { hasHeader: false })
+    return parseCsvUrls(text, { hasHeader: false, requireGroup: false })
   }
 
   return parsePasteInput(text)

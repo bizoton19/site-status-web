@@ -10,6 +10,7 @@
       <nav class="home-nav-links" aria-label="Primary">
         <router-link class="home-nav-link" to="/allstatuses">Public statuses</router-link>
         <router-link class="home-nav-link" to="/faq">FAQ</router-link>
+        <router-link class="home-nav-link" to="/contact">Pricing</router-link>
       </nav>
       <div class="home-nav-actions">
         <ThemeToggle />
@@ -31,8 +32,8 @@
 
     <PublicDirectoryPanel
       title="All public endpoints"
-      lead="Full public directory — search, filter by category, and page through every owner group."
-      empty-message="No public endpoints match. Try clearing search or category filters."
+      lead="Full public directory — search, filter by group, and page through every owner group."
+      empty-message="No public endpoints match. Try clearing search or group filters."
       :show-filters="true"
       :show-pagination="true"
       :page-size="10"

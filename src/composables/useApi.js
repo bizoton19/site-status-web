@@ -74,6 +74,13 @@ function getDomainHeaderReaderFunctionName() {
   return 'domainheaderreader'
 }
 
+/** Public contact form — POST JSON (Turnstile verified server-side) */
+function getContactFunctionName() {
+  const raw = import.meta.env.VITE_CONTACT_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'contact'
+}
+
 /** Domain-level header profiles — POST / PUT / DELETE */
 function getDomainHeaderPersisterFunctionName() {
   const raw = import.meta.env.VITE_DOMAIN_HEADER_PERSISTER_FUNCTION
@@ -220,10 +227,15 @@ function buildUrlPayload(urlData) {
     headers[key] = value
   }
 
+  const group = String(urlData.group ?? urlData.category ?? '').trim()
+
   return {
     urlName: urlData.urlName,
     url: urlData.url,
-    category: urlData.category || 'General',
+    group,
+    // Same value under the legacy field so the current persister keeps the label
+    // until it reads `group`.
+    category: group,
     visibility: urlData.visibility === 'public' ? 'public' : 'private',
     headers: ensureDefaultUserAgent(headers)
   }
@@ -268,7 +280,8 @@ export function useApi() {
    * Public landing directory — anonymous, public endpoints only.
    * Returns { summary, page, pageSize, totalOwners, totalPages, groups }.
    * Groups are owner-partition buckets with opaque groupKey (never render as a label).
-   * @param {{ q?: string, category?: string, page?: number, pageSize?: number, maxUrls?: number }} [filters]
+   * Sends `group` and mirrors it as `category` so an older reader can still filter.
+   * @param {{ q?: string, group?: string, category?: string, page?: number, pageSize?: number, maxUrls?: number }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
     loading.value = true
@@ -286,7 +299,11 @@ const empty = {
     try {
       const params = {}
       if (filters.q) params.q = filters.q
-      if (filters.category) params.category = filters.category
+      const group = String(filters.group ?? filters.category ?? '').trim()
+      if (group) {
+        params.group = group
+        params.category = group
+      }
       if (filters.page) params.page = filters.page
       if (filters.pageSize) params.pageSize = filters.pageSize
       if (filters.maxUrls != null && filters.maxUrls !== '') params.maxUrls = filters.maxUrls
@@ -345,6 +362,7 @@ const empty = {
             return {
               url: row.Url ?? row.url ?? '',
               domain,
+              group: String(row.Group ?? row.group ?? row.Category ?? row.category ?? '').trim(),
               category: row.Category ?? row.category ?? 'General',
               status: row.Status ?? row.status ?? '',
               date: row.Date ?? row.date ?? null
@@ -666,6 +684,48 @@ const empty = {
     }
   }
 
+  /**
+   * Public contact submission. Returns { ok: true } or { ok: false, error }
+   * where error is a short code, never a server body or the visitor's message.
+   */
+  async function submitContact({ name, email, message, turnstileToken }) {
+    try {
+      const response = await fetch(apiUrl(getContactFunctionName()), {
+        method: 'POST',
+        credentials: 'omit',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          turnstileToken,
+          'cf-turnstile-response': turnstileToken,
+        }),
+      })
+
+      let payload = null
+      try {
+        payload = await response.json()
+      } catch {
+        payload = null
+      }
+
+      if (response.ok && payload && payload.ok === true) {
+        return { ok: true }
+      }
+
+      const code = payload && typeof payload.error === 'string' ? payload.error : ''
+      const allowed = new Set(['verification_failed', 'invalid_request', 'unavailable'])
+      return { ok: false, error: allowed.has(code) ? code : 'unavailable' }
+    } catch {
+      console.error('Contact submit failed')
+      return { ok: false, error: 'unavailable' }
+    }
+  }
+
   async function fetchDomainHeaders() {
     try {
       const response = await fetch(apiUrl(getDomainHeaderReaderFunctionName()), {
@@ -746,6 +806,7 @@ const empty = {
     updateUrl,
     deleteUrl,
     deleteUrls,
+    submitContact,
     fetchDomainHeaders,
     saveDomainHeader,
     deleteDomainHeader

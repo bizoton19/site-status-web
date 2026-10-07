@@ -50,12 +50,13 @@
             aria-label="Search name or URL"
           >
           <select
-            v-model="filterCategory"
+            id="url-group-filter"
+            v-model="filterGroup"
             class="form-control url-filter-select"
-            aria-label="Filter by category"
+            aria-label="Filter by group"
           >
-            <option value="">All categories</option>
-            <option v-for="cat in filterCategoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+            <option value="">All groups</option>
+            <option v-for="name in knownGroups" :key="name" :value="name">{{ name }}</option>
           </select>
           <select
             v-model="filterDomain"
@@ -94,7 +95,7 @@
                 >
               </th>
               <th>Name</th>
-              <th>Category</th>
+              <th>Group</th>
               <th>Visibility</th>
               <th>URL</th>
               <th>Headers</th>
@@ -115,7 +116,7 @@
                 <strong>{{ urlNameOf(url) }}</strong>
               </td>
               <td>
-                <span class="cat-pill">{{ displayCategory(url) }}</span>
+                <span class="group-pill">{{ displayGroup(url) || '—' }}</span>
               </td>
               <td>
                 <span
@@ -284,12 +285,13 @@
                 rows="10"
                 spellcheck="false"
                 autocomplete="off"
-                placeholder="name,url,category&#10;calendly,https://calendly.com/,TechSMB&#10;API Health | https://api.example.com/status&#10;https://example.com/health"
+                placeholder="name,url,group&#10;calendly,https://calendly.com/,TechSMB&#10;API Health | https://api.example.com/status&#10;https://example.com/health"
               />
               <p class="headers-hint">
-                Paste a plain list or CSV. CSV columns <code>name,url,category</code> (header optional).
+                Paste a plain list or CSV. CSV columns <code>name,url,group</code> (header optional;
+                a legacy <code>category</code> column is read as the group).
                 Also: one HTTPS URL per line, <code>name | url</code>, or tab-separated.
-                Per-row category overrides the picker below when present. Blank lines and <code>#</code> comments are ignored.
+                Per-row group overrides the Group field below when present. Blank lines and <code>#</code> comments are ignored.
               </p>
               <p v-if="pastePreview.rows.length || pastePreview.errors.length" class="paste-preview">
                 <span v-if="pastePreview.rows.length" class="paste-ok">
@@ -306,23 +308,29 @@
           </template>
 
           <div class="mb-3">
-            <label class="form-label" for="url-category">Category</label>
-            <select id="url-category" v-model="formData.category" class="form-control">
-              <option v-for="opt in categoryOptions" :key="opt" :value="opt">{{ opt }}</option>
-              <option value="Custom">Custom (free text)</option>
-            </select>
-          </div>
-          <div v-if="formData.category === 'Custom'" class="mb-3">
-            <label class="form-label" for="url-category-custom">Custom category</label>
+            <label class="form-label" for="url-group">Group</label>
             <input
-              id="url-category-custom"
-              v-model="formData.categoryCustom"
+              id="url-group"
+              v-model="formData.group"
               type="text"
               class="form-control"
-              placeholder="e.g., Billing webhook"
+              list="url-group-options"
+              placeholder="bilomax-api"
               maxlength="64"
+              :required="isEditing || addMode === 'manual'"
               autocomplete="off"
             >
+            <p class="headers-hint">
+              <template v-if="!isEditing && addMode === 'paste'">
+                Required for rows without their own group. This label groups URLs when you view them.
+              </template>
+              <template v-else>
+                Required. This label groups URLs when you view them. Example: bilomax-api.
+              </template>
+            </p>
+            <datalist id="url-group-options">
+              <option v-for="name in knownGroups" :key="name" :value="name" />
+            </datalist>
           </div>
           <div class="mb-3">
             <label class="form-label">Visibility</label>
@@ -472,20 +480,10 @@ import {
   SUGGESTED_HEADERS,
   suggestionForHeader
 } from '../utils/domainHeaders'
-import { generateUrlName, parseUrlImport, validateUrl } from '../utils/urlValidation'
+import { generateUrlName, parseUrlImport, readGroup, validateUrl } from '../utils/urlValidation'
 import { DEFAULT_MONITOR_USER_AGENT } from '../composables/useApi'
 
 const emit = defineEmits(['urlUpdated'])
-
-const CATEGORY_OPTIONS = [
-  'Landing',
-  'API',
-  'Intake',
-  'Documentation',
-  'General',
-  'Auth',
-  'Search'
-]
 
 const {
   fetchUrls,
@@ -515,11 +513,10 @@ const actionMessage = ref('')
 const actionSuccess = ref(false)
 const nameInput = ref(null)
 const pasteInput = ref(null)
-const categoryOptions = CATEGORY_OPTIONS
 const showHeaderValues = ref(true)
 
 const filterQuery = ref('')
-const filterCategory = ref('')
+const filterGroup = ref('')
 const filterDomain = ref('')
 /** @type {import('vue').Ref<Set<string>>} */
 const selectedNames = ref(new Set())
@@ -552,8 +549,7 @@ const defaultHeaderRows = () => [
 const emptyForm = () => ({
   urlName: '',
   url: '',
-  category: 'General',
-  categoryCustom: '',
+  group: '',
   visibility: 'private',
   headers: defaultHeaderRows()
 })
@@ -572,11 +568,13 @@ function hostOf(url) {
   return hostFromUrl(urlValueOf(url)) || ''
 }
 
-const filterCategoryOptions = computed(() => {
-  const fromData = urls.value.map((u) => displayCategory(u)).filter(Boolean)
-  return [...new Set([...CATEGORY_OPTIONS, ...fromData])].sort((a, b) =>
-    a.localeCompare(b)
-  )
+const knownGroups = computed(() => {
+  const names = new Set()
+  for (const url of urls.value) {
+    const group = displayGroup(url)
+    if (group) names.add(group)
+  }
+  return [...names].sort((a, b) => a.localeCompare(b))
 })
 
 const filterDomainOptions = computed(() => {
@@ -585,16 +583,16 @@ const filterDomainOptions = computed(() => {
 })
 
 const filtersActive = computed(
-  () => !!(filterQuery.value.trim() || filterCategory.value || filterDomain.value)
+  () => !!(filterQuery.value.trim() || filterGroup.value || filterDomain.value)
 )
 
 const filteredUrls = computed(() => {
   const q = filterQuery.value.trim().toLowerCase()
-  const cat = filterCategory.value
+  const group = filterGroup.value
   const domain = filterDomain.value.toLowerCase()
 
   return urls.value.filter((url) => {
-    if (cat && displayCategory(url) !== cat) return false
+    if (group && displayGroup(url) !== group) return false
     if (domain && hostOf(url) !== domain) return false
     if (q) {
       const name = urlNameOf(url).toLowerCase()
@@ -646,7 +644,7 @@ function clearSelection() {
 
 function clearFilters() {
   filterQuery.value = ''
-  filterCategory.value = ''
+  filterGroup.value = ''
   filterDomain.value = ''
 }
 
@@ -684,23 +682,8 @@ function urlHeaderKeys(url) {
     .filter(Boolean)
 }
 
-function resolveCategory(category, categoryCustom) {
-  if (category === 'Custom') {
-    return (categoryCustom || '').trim() || 'Custom'
-  }
-  return category || 'General'
-}
-
-function displayCategory(url) {
-  return url.Category || url.category || 'General'
-}
-
-function splitCategory(raw) {
-  const value = (raw || 'General').trim()
-  if (CATEGORY_OPTIONS.includes(value)) {
-    return { category: value, categoryCustom: '' }
-  }
-  return { category: 'Custom', categoryCustom: value }
+function displayGroup(url) {
+  return readGroup(url)
 }
 
 function parseHeaders(url) {
@@ -833,14 +816,12 @@ async function openAddModal() {
 }
 
 async function openEditModal(url) {
-  const split = splitCategory(url.Category || url.category)
   isEditing.value = true
   showHeaderValues.value = false // hides Authorization / API keys only — User-Agent stays visible
   formData.value = {
     urlName: url.UrlName || url.urlName || '',
     url: url.Url || url.url || '',
-    category: split.category,
-    categoryCustom: split.categoryCustom,
+    group: displayGroup(url),
     visibility: url.Visibility || url.visibility || 'private',
     headers: parseHeaders(url)
   }
@@ -868,18 +849,13 @@ async function handleSave() {
       return
     }
 
-    const needsDefaultCategory = rows.some((row) => !String(row.category || '').trim())
-    if (
-      needsDefaultCategory &&
-      formData.value.category === 'Custom' &&
-      !formData.value.categoryCustom?.trim()
-    ) {
-      formMessage.value = 'Enter a custom category, or pick a preset'
+    const defaultGroup = formData.value.group?.trim() || ''
+    const needsDefaultGroup = rows.some((row) => !String(row.group || '').trim())
+    if (needsDefaultGroup && !defaultGroup) {
+      formMessage.value = 'Enter a group for rows without one. It groups URLs when you view them.'
       formSuccess.value = false
       return
     }
-
-    const defaultCategory = resolveCategory(formData.value.category, formData.value.categoryCustom)
 
     saving.value = true
     formMessage.value = ''
@@ -887,7 +863,7 @@ async function handleSave() {
     const payloads = rows.map((row) => ({
       urlName: row.urlName,
       url: row.url,
-      category: String(row.category || '').trim() || defaultCategory,
+      group: String(row.group || '').trim() || defaultGroup,
       visibility,
       headers: defaultHeaderRows()
     }))
@@ -914,13 +890,12 @@ async function handleSave() {
     return
   }
 
-  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
-    formMessage.value = 'Enter a custom category, or pick a preset'
+  const group = formData.value.group?.trim() || ''
+  if (!group) {
+    formMessage.value = 'Enter a group. It groups URLs when you view them.'
     formSuccess.value = false
     return
   }
-
-  const category = resolveCategory(formData.value.category, formData.value.categoryCustom)
 
   const urlCheck = validateUrl(formData.value.url)
   if (!urlCheck.valid) {
@@ -942,7 +917,7 @@ async function handleSave() {
   const payload = {
     urlName,
     url: urlCheck.url,
-    category,
+    group,
     visibility,
     headers: formData.value.headers
   }
@@ -1155,17 +1130,20 @@ defineExpose({ loadUrls, loadDomainProfiles })
   padding: 1.25rem 0;
 }
 
-.cat-pill,
+.group-pill,
 .vis-pill {
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.2rem 0.45rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.vis-pill {
+  text-transform: uppercase;
 }
 
 .vis-pill.is-public {

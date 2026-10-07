@@ -16,13 +16,13 @@
           @keyup.enter="onSearch"
         >
         <select
-          v-model="directoryCategory"
+          v-model="directoryGroup"
           class="form-control directory-category"
-          aria-label="Filter by category"
+          aria-label="Filter by group"
           @change="onFilterChange"
         >
-          <option value="">All categories</option>
-          <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+          <option value="">All groups</option>
+          <option v-for="name in groupOptions" :key="name" :value="name">{{ name }}</option>
         </select>
         <button type="button" class="btn btn-secondary" @click="onSearch">Search</button>
       </div>
@@ -52,7 +52,7 @@
               <tr>
                 <th>Endpoint</th>
                 <th>Domain</th>
-                <th>Category</th>
+                <th>Group</th>
                 <th>Status</th>
                 <th>Last checked</th>
               </tr>
@@ -72,7 +72,7 @@
                 </td>
                 <td>{{ item.domain || '—' }}</td>
                 <td>
-                  <span class="cat-chip">{{ item.category }}</span>
+                  <span class="cat-chip">{{ item.group || '—' }}</span>
                 </td>
                 <td>
                   <div class="status-cell">
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Show, SignInButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
@@ -164,16 +164,6 @@ import {
   isSuccessStatus,
   publicStatusClass
 } from '../utils/probeStatus.js'
-
-const CATEGORY_OPTIONS = [
-  'Landing',
-  'API',
-  'Intake',
-  'Documentation',
-  'General',
-  'Auth',
-  'Search'
-]
 
 const props = defineProps({
   title: { type: String, default: 'Live endpoints' },
@@ -206,18 +196,34 @@ const { fetchPublicStatuses } = useApi()
 const directoryGroups = ref([])
 const directoryLoading = ref(true)
 const directoryQuery = ref('')
-const directoryCategory = ref('')
+const directoryGroup = ref('')
+/** Group labels seen so far (groups are free text, so options come from loaded data). */
+const seenGroups = ref(new Set())
 const directoryPage = ref(1)
 const totalPages = ref(1)
 const totalOwners = ref(0)
-const categoryOptions = CATEGORY_OPTIONS
+const groupOptions = computed(() => {
+  const names = new Set(seenGroups.value)
+  if (directoryGroup.value) names.add(directoryGroup.value)
+  return [...names].sort((a, b) => a.localeCompare(b))
+})
+
+function rememberGroups(groups) {
+  const next = new Set(seenGroups.value)
+  for (const g of groups || []) {
+    for (const item of g.items || []) {
+      if (item.group) next.add(item.group)
+    }
+  }
+  seenGroups.value = next
+}
 
 async function loadDirectory() {
   directoryLoading.value = true
   try {
     const data = await fetchPublicStatuses({
       q: props.showFilters ? (directoryQuery.value.trim() || undefined) : undefined,
-      category: props.showFilters ? (directoryCategory.value || undefined) : undefined,
+      group: props.showFilters ? (directoryGroup.value || undefined) : undefined,
       page: directoryPage.value,
       pageSize: props.pageSize,
       maxUrls: props.maxUrls ?? undefined
@@ -227,6 +233,7 @@ async function loadDirectory() {
     }
     // Server already applies maxUrls as a per-group item cap (not a group filter).
     directoryGroups.value = Array.isArray(data.groups) ? data.groups : []
+    rememberGroups(directoryGroups.value)
     totalPages.value = data.totalPages || 1
     totalOwners.value = data.totalOwners || 0
     directoryPage.value = data.page || directoryPage.value

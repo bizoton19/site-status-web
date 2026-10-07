@@ -7,6 +7,7 @@
       <nav class="site-footer-links" aria-label="Footer">
         <router-link to="/allstatuses">Public statuses</router-link>
         <router-link to="/faq">FAQ</router-link>
+        <router-link to="/contact">Pricing</router-link>
       </nav>
       <p class="site-footer-copy">
         © {{ year }} Outpost13. All rights reserved.
