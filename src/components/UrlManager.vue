@@ -19,23 +19,39 @@
         <h4>No URLs configured</h4>
         <p>Use Add URL to register endpoints.</p>
       </div>
+      <template v-else>
+      <div class="url-toolbar">
+        <label class="form-label" for="url-group-filter">Group</label>
+        <select
+          id="url-group-filter"
+          v-model="groupFilter"
+          class="form-control"
+          aria-label="Filter by group"
+        >
+          <option value="">All groups</option>
+          <option v-for="name in knownGroups" :key="name" :value="name">{{ name }}</option>
+        </select>
+      </div>
+      <p v-if="filteredUrls.length === 0" class="empty-state compact">
+        No URLs in this group.
+      </p>
       <table v-else class="data-table">
         <thead>
           <tr>
             <th>Name</th>
-            <th>Category</th>
+            <th>Group</th>
             <th>Visibility</th>
             <th>URL</th>
             <th style="width: 120px;">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="url in urls" :key="url.UrlName || url.urlName">
+          <tr v-for="url in filteredUrls" :key="url.UrlName || url.urlName">
             <td>
               <strong>{{ url.UrlName || url.urlName }}</strong>
             </td>
             <td>
-              <span class="cat-pill">{{ displayCategory(url) }}</span>
+              <span class="group-pill">{{ displayGroup(url) || '—' }}</span>
             </td>
             <td>
               <span
@@ -73,6 +89,7 @@
           </tr>
         </tbody>
       </table>
+      </template>
     </div>
   </div>
 
@@ -126,23 +143,24 @@
             >
           </div>
           <div class="mb-3">
-            <label class="form-label" for="url-category">Category</label>
-            <select id="url-category" v-model="formData.category" class="form-control">
-              <option v-for="opt in categoryOptions" :key="opt" :value="opt">{{ opt }}</option>
-              <option value="Custom">Custom (free text)</option>
-            </select>
-          </div>
-          <div v-if="formData.category === 'Custom'" class="mb-3">
-            <label class="form-label" for="url-category-custom">Custom category</label>
+            <label class="form-label" for="url-group">Group</label>
             <input
-              id="url-category-custom"
-              v-model="formData.categoryCustom"
+              id="url-group"
+              v-model="formData.group"
               type="text"
               class="form-control"
-              placeholder="e.g., Billing webhook"
+              list="url-group-options"
+              placeholder="bilomax-api"
               maxlength="64"
+              required
               autocomplete="off"
             >
+            <p class="headers-hint">
+              Required. This label groups URLs when you view them. Example: bilomax-api.
+            </p>
+            <datalist id="url-group-options">
+              <option v-for="name in knownGroups" :key="name" :value="name" />
+            </datalist>
           </div>
           <div class="mb-3">
             <label class="form-label">Visibility</label>
@@ -259,18 +277,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useApi } from '../composables/useApi'
 import { matchDomain, parseHeadersJson, SUGGESTED_HEADERS, suggestionForHeader } from '../utils/domainHeaders'
+import { readGroup } from '../utils/urlValidation.js'
 
 const emit = defineEmits(['urlUpdated'])
-
-const CATEGORY_OPTIONS = [
-  'Landing',
-  'API',
-  'Intake',
-  'Documentation',
-  'General',
-  'Auth',
-  'Search'
-]
 
 const { fetchUrls, addUrl, updateUrl, deleteUrl, fetchDomainHeaders } = useApi()
 const domainProfiles = ref([])
@@ -284,16 +293,15 @@ const formSuccess = ref(false)
 const actionMessage = ref('')
 const actionSuccess = ref(false)
 const nameInput = ref(null)
-const categoryOptions = CATEGORY_OPTIONS
 const showHeaderValues = ref(true)
+const groupFilter = ref('')
 
 const emptyHeaderRow = () => ({ key: '', value: '' })
 
 const emptyForm = () => ({
   urlName: '',
   url: '',
-  category: 'General',
-  categoryCustom: '',
+  group: '',
   visibility: 'private',
   headers: [emptyHeaderRow()]
 })
@@ -314,24 +322,24 @@ const inheritedHeaders = computed(() => {
   return profile ? profile.headerList : []
 })
 
-function resolveCategory(category, categoryCustom) {
-  if (category === 'Custom') {
-    return (categoryCustom || '').trim() || 'Custom'
-  }
-  return category || 'General'
+function displayGroup(url) {
+  return readGroup(url)
 }
 
-function displayCategory(url) {
-  return url.Category || url.category || 'General'
-}
-
-function splitCategory(raw) {
-  const value = (raw || 'General').trim()
-  if (CATEGORY_OPTIONS.includes(value)) {
-    return { category: value, categoryCustom: '' }
+const knownGroups = computed(() => {
+  const names = new Set()
+  for (const url of urls.value) {
+    const group = displayGroup(url)
+    if (group) names.add(group)
   }
-  return { category: 'Custom', categoryCustom: value }
-}
+  return [...names].sort((a, b) => a.localeCompare(b))
+})
+
+const filteredUrls = computed(() => {
+  const selected = groupFilter.value
+  if (!selected) return urls.value
+  return urls.value.filter((url) => displayGroup(url) === selected)
+})
 
 function parseHeaders(url) {
   const raw = url.CustomHeadersJson || url.customHeadersJson || url.headers || url.Headers
@@ -427,14 +435,12 @@ async function openAddModal() {
 }
 
 async function openEditModal(url) {
-  const split = splitCategory(url.Category || url.category)
   isEditing.value = true
   showHeaderValues.value = false
   formData.value = {
     urlName: url.UrlName || url.urlName || '',
     url: url.Url || url.url || '',
-    category: split.category,
-    categoryCustom: split.categoryCustom,
+    group: displayGroup(url),
     visibility: url.Visibility || url.visibility || 'private',
     headers: parseHeaders(url)
   }
@@ -458,8 +464,9 @@ async function handleSave() {
     return
   }
 
-  if (formData.value.category === 'Custom' && !formData.value.categoryCustom?.trim()) {
-    formMessage.value = 'Enter a custom category, or pick a preset'
+  const group = formData.value.group?.trim() || ''
+  if (!group) {
+    formMessage.value = 'Enter a group. It groups URLs when you view them.'
     formSuccess.value = false
     return
   }
@@ -470,7 +477,7 @@ async function handleSave() {
   const payload = {
     urlName: formData.value.urlName.trim(),
     url: formData.value.url.trim(),
-    category: resolveCategory(formData.value.category, formData.value.categoryCustom),
+    group,
     visibility: formData.value.visibility === 'public' ? 'public' : 'private',
     headers: formData.value.headers
   }
@@ -518,17 +525,35 @@ onUnmounted(() => lockBodyScroll(false))
 </script>
 
 <style scoped>
-.cat-pill,
+.url-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.9rem;
+}
+
+.url-toolbar .form-label {
+  margin-bottom: 0;
+}
+
+.url-toolbar .form-control {
+  max-width: 220px;
+}
+
+.group-pill,
 .vis-pill {
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.2rem 0.45rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.vis-pill {
+  text-transform: uppercase;
 }
 
 .vis-pill.is-public {

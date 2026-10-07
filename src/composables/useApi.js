@@ -67,6 +67,13 @@ function getDomainHeaderReaderFunctionName() {
   return 'domainheaderreader'
 }
 
+/** Public contact form — POST JSON (Turnstile verified server-side) */
+function getContactFunctionName() {
+  const raw = import.meta.env.VITE_CONTACT_FUNCTION
+  if (raw && String(raw).trim()) return String(raw).trim()
+  return 'contact'
+}
+
 /** Domain-level header profiles — POST / PUT / DELETE */
 function getDomainHeaderPersisterFunctionName() {
   const raw = import.meta.env.VITE_DOMAIN_HEADER_PERSISTER_FUNCTION
@@ -194,10 +201,15 @@ function buildUrlPayload(urlData) {
     headers[key] = value
   }
 
+  const group = String(urlData.group ?? urlData.category ?? '').trim()
+
   return {
     urlName: urlData.urlName,
     url: urlData.url,
-    category: urlData.category || 'General',
+    group,
+    // Same value under the legacy field so the current persister keeps the label
+    // until it reads `group`.
+    category: group,
     visibility: urlData.visibility === 'public' ? 'public' : 'private',
     headers
   }
@@ -236,7 +248,8 @@ export function useApi() {
 
   /**
    * Public landing directory — anonymous, public endpoints only.
-   * @param {{ q?: string, category?: string }} [filters]
+   * Sends `group` and mirrors it as `category` so an older reader can still filter.
+   * @param {{ q?: string, group?: string, category?: string }} [filters]
    */
   async function fetchPublicStatuses(filters = {}) {
     loading.value = true
@@ -245,7 +258,11 @@ export function useApi() {
     try {
       const params = {}
       if (filters.q) params.q = filters.q
-      if (filters.category) params.category = filters.category
+      const group = String(filters.group ?? filters.category ?? '').trim()
+      if (group) {
+        params.group = group
+        params.category = group
+      }
 
       const response = await fetch(apiUrl(getPublicStatusesFunctionName(), params), {
         method: 'GET',
@@ -478,6 +495,48 @@ export function useApi() {
     }
   }
 
+  /**
+   * Public contact submission. Returns { ok: true } or { ok: false, error }
+   * where error is a short code, never a server body or the visitor's message.
+   */
+  async function submitContact({ name, email, message, turnstileToken }) {
+    try {
+      const response = await fetch(apiUrl(getContactFunctionName()), {
+        method: 'POST',
+        credentials: 'omit',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          turnstileToken,
+          'cf-turnstile-response': turnstileToken,
+        }),
+      })
+
+      let payload = null
+      try {
+        payload = await response.json()
+      } catch {
+        payload = null
+      }
+
+      if (response.ok && payload && payload.ok === true) {
+        return { ok: true }
+      }
+
+      const code = payload && typeof payload.error === 'string' ? payload.error : ''
+      const allowed = new Set(['verification_failed', 'invalid_request', 'unavailable'])
+      return { ok: false, error: allowed.has(code) ? code : 'unavailable' }
+    } catch {
+      console.error('Contact submit failed')
+      return { ok: false, error: 'unavailable' }
+    }
+  }
+
   async function fetchDomainHeaders() {
     try {
       const response = await fetch(apiUrl(getDomainHeaderReaderFunctionName()), {
@@ -554,6 +613,7 @@ export function useApi() {
     addUrl,
     updateUrl,
     deleteUrl,
+    submitContact,
     fetchDomainHeaders,
     saveDomainHeader,
     deleteDomainHeader

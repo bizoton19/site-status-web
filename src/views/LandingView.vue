@@ -1,27 +1,5 @@
 <template>
-  <main class="home-page">
-    <div class="home-grid-bg" aria-hidden="true"></div>
-
-    <header class="home-nav">
-      <button type="button" class="brand-button" @click="goHome">
-        <span class="logo-mark" aria-hidden="true"></span>
-        <span>Watchtower</span>
-      </button>
-      <div class="home-nav-actions">
-        <ThemeToggle />
-        <Show v-if="isClerkConfigured" when="signed-in">
-          <button type="button" class="btn btn-secondary btn-sm" @click="goToApp">
-            View my statuses
-          </button>
-        </Show>
-        <Show v-if="isClerkConfigured" when="signed-out">
-          <SignInButton mode="redirect" force-redirect-url="/statuses">
-            <button type="button" class="btn btn-secondary btn-sm">Sign in</button>
-          </SignInButton>
-        </Show>
-      </div>
-    </header>
-
+  <MarketingShell>
     <section class="hero-shell">
       <div class="hero-copy">
         <div class="eyebrow">
@@ -117,7 +95,7 @@
       <div class="directory-header">
         <div>
           <p class="panel-kicker">Public directory</p>
-          <h2>Live endpoints by category</h2>
+          <h2>Live endpoints by group</h2>
           <p class="directory-lead">
             Publicly shared monitors, grouped for quick scanning. Mark endpoints public from Manage.
           </p>
@@ -131,12 +109,12 @@
             aria-label="Search public endpoints"
           >
           <select
-            v-model="directoryCategory"
-            class="form-control directory-category"
-            aria-label="Filter by category"
+            v-model="directoryGroup"
+            class="form-control directory-group"
+            aria-label="Filter by group"
           >
-            <option value="">All categories</option>
-            <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+            <option value="">All groups</option>
+            <option v-for="name in groupOptions" :key="name" :value="name">{{ name }}</option>
           </select>
         </div>
       </div>
@@ -148,13 +126,13 @@
 
       <div v-else class="directory-groups">
         <article
-          v-for="group in groupedDirectory"
-          :key="group.category"
+          v-for="section in groupedDirectory"
+          :key="section.group"
           class="directory-group"
         >
           <header class="directory-group-header">
-            <h3>{{ group.category }}</h3>
-            <span>{{ group.items.length }}</span>
+            <h3>{{ section.group }}</h3>
+            <span>{{ section.items.length }}</span>
           </header>
           <div class="directory-table-wrap">
             <table class="directory-table">
@@ -167,7 +145,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in group.items" :key="`${item.category}-${item.urlName}-${item.url}`">
+                <tr v-for="item in section.items" :key="`${item.group}-${item.urlName}-${item.url}`">
                   <td>
                     <strong>{{ item.urlName }}</strong>
                     <a
@@ -206,7 +184,7 @@
         <span>ACS alerts</span>
       </div>
     </section>
-  </main>
+  </MarketingShell>
 </template>
 
 <script setup>
@@ -214,18 +192,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Show, SignInButton, SignUpButton } from '@clerk/vue'
 import { isClerkConfigured } from '../auth/clerkConfig.js'
-import ThemeToggle from '../components/ThemeToggle.vue'
+import MarketingShell from '../components/MarketingShell.vue'
 import { useApi } from '../composables/useApi.js'
-
-const CATEGORY_OPTIONS = [
-  'Landing',
-  'API',
-  'Intake',
-  'Documentation',
-  'General',
-  'Auth',
-  'Search'
-]
+import { readGroup } from '../utils/urlValidation.js'
 
 const router = useRouter()
 const { fetchStatuses, fetchPublicStatuses } = useApi()
@@ -235,8 +204,7 @@ const statsLoading = ref(true)
 const directory = ref([])
 const directoryLoading = ref(true)
 const directoryQuery = ref('')
-const directoryCategory = ref('')
-const categoryOptions = CATEGORY_OPTIONS
+const directoryGroup = ref('')
 
 const capabilities = [
   {
@@ -254,11 +222,6 @@ const capabilities = [
     title: 'Actionable alerts',
     copy: 'Durable polling records current state, history, and alert signals without managing servers.',
   },
-  {
-    icon: 'bi-cash-stack',
-    title: 'Free up to 25 URLs',
-    copy: 'No credit card. Stay free while we grow; later it’s about $1 per extra 10 URLs — not a big SaaS ladder.',
-  },
 ]
 
 const onlineCount = computed(() => statuses.value.filter((s) => isUp(s.status)).length)
@@ -269,13 +232,21 @@ const uptimePercentage = computed(() => {
   return Math.round((onlineCount.value / totalCount.value) * 100)
 })
 
+const groupOptions = computed(() => {
+  const names = new Set()
+  for (const item of directory.value) {
+    if (item.group) names.add(item.group)
+  }
+  return [...names].sort((a, b) => a.localeCompare(b))
+})
+
 const filteredDirectory = computed(() => {
   const q = directoryQuery.value.trim().toLowerCase()
-  const cat = directoryCategory.value
+  const selected = directoryGroup.value
   return directory.value.filter((item) => {
-    if (cat && item.category !== cat) return false
+    if (selected && item.group !== selected) return false
     if (!q) return true
-    const hay = `${item.urlName} ${item.url} ${item.category} ${item.orgLabel}`.toLowerCase()
+    const hay = `${item.urlName} ${item.url} ${item.group} ${item.orgLabel}`.toLowerCase()
     return hay.includes(q)
   })
 })
@@ -283,26 +254,25 @@ const filteredDirectory = computed(() => {
 const groupedDirectory = computed(() => {
   const map = new Map()
   for (const item of filteredDirectory.value) {
-    const key = item.category || 'General'
+    const key = item.group || '—'
     if (!map.has(key)) map.set(key, [])
     map.get(key).push(item)
   }
   return [...map.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([category, items]) => ({ category, items }))
+    .map(([group, items]) => ({ group, items }))
 })
 
 async function loadDirectory() {
   directoryLoading.value = true
   try {
     const rows = await fetchPublicStatuses({
-      q: directoryQuery.value.trim() || undefined,
-      category: directoryCategory.value || undefined
+      q: directoryQuery.value.trim() || undefined
     })
     directory.value = rows.map((row) => ({
       urlName: row.UrlName ?? row.urlName ?? '',
       url: row.Url ?? row.url ?? '',
-      category: row.Category ?? row.category ?? 'General',
+      group: readGroup(row),
       status: row.Status ?? row.status ?? '',
       date: row.Date ?? row.date ?? null,
       orgLabel: row.OrgLabel ?? row.orgLabel ?? 'Watchtower'
@@ -355,67 +325,12 @@ function formatChecked(date) {
   return d.toLocaleString()
 }
 
-function goHome() {
-  router.push('/')
-}
-
 function goToApp() {
   router.push('/statuses')
 }
 </script>
 
 <style scoped>
-.home-page {
-  min-height: 100vh;
-  padding: 1.25rem clamp(1rem, 3vw, 2.5rem) 3rem;
-  position: relative;
-  overflow: hidden;
-}
-
-.home-grid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 18% 14%, rgba(255, 51, 102, 0.18), transparent 28rem),
-    radial-gradient(circle at 78% 8%, rgba(74, 222, 128, 0.12), transparent 24rem),
-    linear-gradient(var(--border-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
-  background-size: auto, auto, 72px 72px, 72px 72px;
-  mask-image: linear-gradient(to bottom, #000 0%, transparent 88%);
-  opacity: 0.58;
-}
-
-.home-nav {
-  max-width: 1180px;
-  margin: 0 auto 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 0;
-}
-
-.brand-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  border: 0;
-  background: transparent;
-  color: var(--text-main);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.home-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
 .hero-shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -612,14 +527,8 @@ function goToApp() {
   max-width: 1180px;
   margin: 3rem auto 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.9rem;
-}
-
-@media (max-width: 1100px) {
-  .capability-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .capability-card {
@@ -708,7 +617,7 @@ function goToApp() {
   min-width: min(280px, 70vw);
 }
 
-.directory-category {
+.directory-group {
   min-width: 160px;
 }
 
@@ -824,23 +733,20 @@ function goToApp() {
   color: var(--text-muted);
 }
 
+@media (max-width: 900px) {
+  .capability-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .hero-shell,
   .architecture-strip {
     grid-template-columns: 1fr;
   }
-
-  .capability-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
-  .home-nav {
-    align-items: flex-start;
-  }
-
-  .home-nav-actions,
   .hero-actions {
     justify-content: flex-start;
   }
@@ -849,8 +755,7 @@ function goToApp() {
     font-size: clamp(2.75rem, 15vw, 4.4rem);
   }
 
-  .home-stats,
-  .capability-grid {
+  .home-stats {
     grid-template-columns: 1fr;
   }
 
@@ -863,7 +768,7 @@ function goToApp() {
   }
 
   .directory-search,
-  .directory-category {
+  .directory-group {
     width: 100%;
     min-width: 0;
   }

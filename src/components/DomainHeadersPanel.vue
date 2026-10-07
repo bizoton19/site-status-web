@@ -2,7 +2,7 @@
   <div class="dashboard-card domain-headers-card">
     <div class="dashboard-card-header">
       <div>
-        <h3 class="dashboard-card-title">Domain headers</h3>
+        <h3 class="dashboard-card-title">Domains and Headers</h3>
         <p class="card-sub">
           Optional. Shared request headers for every URL on a host when you need them
           (e.g. a special User-Agent). Skip this if the default poller is enough.
