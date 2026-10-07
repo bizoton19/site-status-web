@@ -2,6 +2,10 @@
 
 > single vue poller ui
 
+## Contact form
+
+`/contact` posts to the Azure Functions route named by `VITE_CONTACT_FUNCTION` (default `contact`). The browser shows a Cloudflare Turnstile widget (`VITE_TURNSTILE_SITE_KEY`). The function in `azure-functions/contact` checks the token with Siteverify before storing the message. Setup, including how to create Turnstile keys for outpost13.app, is in `azure-functions/contact/README.md`. Do not commit the Turnstile secret.
+
 ## Build Setup
 
 ``` bash
